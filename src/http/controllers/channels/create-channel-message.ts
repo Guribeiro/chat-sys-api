@@ -4,7 +4,7 @@ import { BadRequestError } from '@/http/_errors/bad-request-error'
 
 import { io } from '@/server'
 
-export class CreateChannelMessage {
+export class CreateChannelMessageController {
   public async handle(request: Request, response: Response) {
     const userId = request.user.id
     const { slug } = request.params

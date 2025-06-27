@@ -6,7 +6,8 @@ import { createSlug } from '@/utils/create-slug'
 const prisma = new PrismaClient()
 
 async function seed() {
-  await prisma.membership.deleteMany()
+  await prisma.member.deleteMany()
+  await prisma.invite.deleteMany()
   await prisma.message.deleteMany()
   await prisma.channel.deleteMany()
   await prisma.user.deleteMany()
@@ -29,104 +30,54 @@ async function seed() {
     }
   })
 
-  await prisma.user.createMany({
-    data: [
-      {
-        email: faker.internet.email(),
-        name: faker.person.firstName(),
-        password: passwordHash,
-      },
-      {
-        email: faker.internet.email(),
-        name: faker.person.firstName(),
-        password: passwordHash,
-      },
-      {
-        email: faker.internet.email(),
-        name: faker.person.firstName(),
-        password: passwordHash,
-      },
-    ]
-  })
-
   await prisma.channel.create({
     data: {
       slug: createSlug('TI'),
       title: 'TI',
       description: 'channel-description',
-      memberships: {
+      ownerId: user.id,
+      members: {
         createMany: {
           data: [
             {
               memberId: user.id,
+              role: 'ADMIN'
             },
-            {
-              memberId: user2.id,
-            }
           ]
         }
       },
-      messages: {
-        createMany: {
-          data: [
-            {
-              authorId: user.id,
-              content: faker.lorem.sentence(),
-            },
-            {
-              authorId: user.id,
-              content: faker.lorem.sentence(),
-            },
-            {
-              authorId: user2.id,
-              content: faker.lorem.sentence(),
-            },
-            {
-              authorId: user2.id,
-              content: faker.lorem.sentence(),
-            }
-          ]
-        }
+      invites: {
+        create: {
+          authorId: user.id,
+          inviteeId: user2.id,
+          role: 'MEMBER'
+        },
       }
     }
   })
+
+
   await prisma.channel.create({
     data: {
       slug: createSlug('Recursos Humanos'),
       title: 'Recursos Humanos',
+      ownerId: user2.id,
       description: 'channel-description',
-      memberships: {
+      members: {
         createMany: {
           data: [
             {
-              memberId: user.id,
-            },
-            {
               memberId: user2.id,
+              role: 'ADMIN'
             }
           ]
         }
       },
-      messages: {
-        createMany: {
-          data: [
-            {
-              authorId: user.id,
-              content: faker.lorem.sentence(),
-            },
-            {
-              authorId: user.id,
-              content: faker.lorem.sentence(),
-            },
-            {
-              authorId: user2.id,
-              content: faker.lorem.sentence(),
-            },
-            {
-              authorId: user2.id,
-              content: faker.lorem.sentence(),
-            }
-          ]
+      invites: {
+        create: {
+          authorId: user2.id,
+          inviteeId: user.id,
+          role: 'MEMBER'
         }
       }
     }

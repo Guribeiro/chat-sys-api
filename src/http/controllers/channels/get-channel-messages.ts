@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { prisma } from '@/http/lib/prisma'
 
-export class GetChannelMessages {
+export class GetChannelMessagesController {
   public async handle(request: Request, response: Response) {
     const { slug } = request.params
     const messages = await prisma.message.findMany({

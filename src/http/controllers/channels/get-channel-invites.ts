@@ -1,26 +1,27 @@
 import { Request, Response } from 'express'
 import { prisma } from '@/http/lib/prisma'
 
-export class GetChannelMembersController {
+export class GetChannelInvitesController {
   public async handle(request: Request, response: Response) {
     const { slug } = request.params
-    const members = await prisma.member.findMany({
+
+    const invites = await prisma.invite.findMany({
       where: {
         channel: {
           slug
-        },
+        }
       },
       include: {
-        member: {
+        author: {
           select: {
             id: true,
             name: true,
             email: true,
-          },
+          }
         }
       }
     })
 
-    return response.status(200).json(members)
+    return response.status(200).json(invites)
   }
 }
