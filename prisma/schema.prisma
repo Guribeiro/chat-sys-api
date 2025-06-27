@@ -1,0 +1,71 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+model User {
+  id          String       @id @default(uuid())
+  email       String
+  password    String       @map("password_hash")
+  name        String?
+  messages    Message[]
+  memberships Membership[]
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@unique([email])
+  @@index([email])
+  @@map("users")
+}
+
+model Membership {
+  id        String   @id @default(uuid())
+  member    User     @relation(fields: [memberId], references: [id])
+  memberId  String   @map("member_id")
+  channel   Channel  @relation(fields: [channelId], references: [id])
+  channelId String   @map("channel_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("memberships")
+}
+
+model Channel {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  slug        String
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  memberships Membership[]
+  messages    Message[]
+
+  @@unique([slug])
+  @@index([slug])
+  @@map("channels")
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String?
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String   @map("author_id")
+  channel   Channel  @relation(fields: [channelId], references: [id])
+  channelId String   @map("channel_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("messages")
+}
