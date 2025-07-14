@@ -26,7 +26,13 @@ export class CreateChannelController {
         title,
         description,
         slug,
-        ownerId: userId
+        ownerId: userId,
+        members: {
+          create: {
+            memberId: userId,
+            role: 'ADMIN',
+          }
+        }
       }
     })
     return response.status(200).json(channel)

@@ -6,6 +6,7 @@ import { Server } from 'socket.io'
 const server = createServer(app); // Your HTTP server that handles Express requests
 
 const connectedUsers = new Map();
+const userSocketMap = new Map<string, string[]>();
 
 export const io = new Server(server, { // Socket.IO is attached to the existing HTTP server
   cors: {
@@ -14,12 +15,16 @@ export const io = new Server(server, { // Socket.IO is attached to the existing 
 })
 
 io.on('connection', (socket) => {
-  console.log({ connectedUsers: connectedUsers.size })
   socket.on('user_connected', (user) => {
     connectedUsers.set(socket.id, {
       socket: socket,
       user: user
     });
+
+    if (!userSocketMap.has(user.id)) {
+      userSocketMap.set(user.id, []);
+    }
+    userSocketMap.get(user.id)?.push(socket.id);
     updateUserList()
   })
 
@@ -36,6 +41,17 @@ io.on('connection', (socket) => {
     const user = connectedUsers.get(socket.id);
     if (user) {
       connectedUsers.delete(socket.id); // Remove user from our map
+
+      const userSockets = userSocketMap.get(user.id);
+      if (userSockets) {
+        const index = userSockets.indexOf(socket.id);
+        if (index > -1) {
+          userSockets.splice(index, 1); // Remove the disconnected socket ID
+          if (userSockets.length === 0) {
+            userSocketMap.delete(user.id); // If no more sockets for this user, remove the user entry
+          }
+        }
+      }
       updateUserList(); // Notify clients about updated user list
     }
   });
@@ -46,7 +62,6 @@ io.on('connection', (socket) => {
       user: user.user
     }));
 
-    console.log({ users })
     io.emit('user:list_updated', users); // Emit to all clients
   }
 });
@@ -57,4 +72,4 @@ server.listen(env.PORT, () => {
   console.log(`Server running on port ${env.PORT}`);
 });
 
-export { server }
+export { server, userSocketMap }

@@ -41,7 +41,7 @@ model Member {
   member   User   @relation(fields: [memberId], references: [id])
   memberId String @map("member_id")
 
-  channel   Channel @relation(fields: [channelId], references: [id])
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   channelId String  @map("channel_id")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -59,7 +59,7 @@ model Invite {
   invitee   User   @relation("InviteInvitee", fields: [inviteeId], references: [id])
   inviteeId String @map("invitee_id")
 
-  channel   Channel @relation(fields: [channelId], references: [id])
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   channelId String  @map("channel_id")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -96,7 +96,7 @@ model Message {
   author   User   @relation(fields: [authorId], references: [id])
   authorId String @map("author_id")
 
-  channel   Channel @relation(fields: [channelId], references: [id])
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   channelId String  @map("channel_id")
 
   createdAt DateTime @default(now()) @map("created_at")

@@ -31,7 +31,7 @@ export class RejectInviteController {
       throw new BadRequestError('This invite belongs to another user.')
     }
 
-    prisma.invite.delete({
+    await prisma.invite.delete({
       where: {
         id: inviteId,
       },

@@ -1,13 +1,13 @@
 import 'express-async-errors';
 import cors from 'cors';
 import { routes } from './http/routes';
-import { BadRequestError } from '@/http/_errors/bad-request-error'
 
 import express, {
   type Request,
   type Response,
   type NextFunction,
 } from 'express';
+import { NotFoundError, UnauthorizedError, BadRequestError } from './http/_errors';
 
 const app = express()
 
@@ -23,8 +23,20 @@ app.use(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   (err: Error, request: Request, response: Response, next: NextFunction) => {
     console.log({ err })
+    if (err instanceof UnauthorizedError) {
+      return response.status(401).json({
+        message: err.message,
+      });
+    }
+
     if (err instanceof BadRequestError) {
       return response.status(400).json({
+        message: err.message,
+      });
+    }
+
+    if (err instanceof NotFoundError) {
+      return response.status(404).json({
         message: err.message,
       });
     }
