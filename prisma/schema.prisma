@@ -15,6 +15,11 @@ enum Role {
   MEMBER
 }
 
+enum TokenType {
+  PASSWORD_RECOVER
+  REFRESH
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String
@@ -28,10 +33,22 @@ model User {
   channels        Channel[] // This field is not used in the current schema.
   authoredInvites Invite[]  @relation("InviteAuthor") // This relates to Invite.author
   receivedInvites Invite[]  @relation("InviteInvitee") // This relates to Invite.invitee
+  Token           Token[]
 
   @@unique([email])
   @@index([email])
   @@map("users")
+}
+
+model Token {
+  id        String    @id @default(uuid())
+  type      TokenType
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  @@map("tokens")
 }
 
 model Member {
