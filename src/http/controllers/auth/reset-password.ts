@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { prisma } from '@/http/lib/prisma'
 import { BadRequestError } from '@/http/_errors'
-import { compare, hash } from 'bcryptjs'
+import { hash } from 'bcryptjs'
 
 export class ResetPasswordController {
   public async handle(request: Request, response: Response) {

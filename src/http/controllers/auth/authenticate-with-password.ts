@@ -24,7 +24,6 @@ export class AuthenticateWithPasswordController {
       throw new BadRequestError('invalid credentials')
     }
 
-
     const token = sign({
       id: userFromEmail.id,
       email: userFromEmail.email,
