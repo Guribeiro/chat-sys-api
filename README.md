@@ -33,7 +33,7 @@ This is a Node.js application for a real-time chat system, built with Express, P
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/chat-api.git
+   git clone https://github.com/guribeiro/chat-api.git
    ```
 2. Install dependencies:
    ```bash
