@@ -5,7 +5,11 @@
   "scripts": {
     "dev": "pnpm env:load tsx watch src/server.ts",
     "db:studio": "pnpm env:load prisma studio",
-    "env:load": "dotenv -e .env --"
+    "env:load": "dotenv -e .env --",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f api web",
+    "docker:seed": "docker compose exec api pnpm prisma db seed"
   },
   "keywords": [],
   "author": "",
@@ -37,5 +41,6 @@
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
-  }
+  },
+  "packageManager": "pnpm@9.15.9"
 }
