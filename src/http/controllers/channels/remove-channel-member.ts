@@ -3,6 +3,7 @@ import { prisma } from '@/http/lib/prisma'
 import { BadRequestError } from '@/http/_errors/bad-request-error'
 
 import { UnauthorizedError } from '@/http/_errors/unauthorized-error'
+import { getIO, rooms } from '@/socket'
 
 export class RemoveChannelMemberController {
   public async handle(request: Request, response: Response) {
@@ -45,6 +46,13 @@ export class RemoveChannelMemberController {
       }
     })
 
+    const io = getIO()
+    const channelRoom = rooms.channel(channelFromSlug.id)
+    const payload = { channelId: channelFromSlug.id, userId: memberFromChannel.memberId }
+
+    // Notify the channel and the removed user, then pull their sockets out of the room
+    io.to(channelRoom).to(rooms.user(memberFromChannel.memberId)).emit('channel:member_removed', payload)
+    io.in(rooms.user(memberFromChannel.memberId)).socketsLeave(channelRoom)
 
     return response.status(204).send()
   }

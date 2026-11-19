@@ -2,6 +2,7 @@ import { prisma } from '@/http/lib/prisma'
 import { Request, Response } from 'express'
 
 import { NotFoundError } from '@/http/_errors/not-found-error'
+import { getIO, rooms } from '@/socket'
 import { createSlug } from '@/utils/create-slug'
 
 export class UpdateChannelController {
@@ -36,6 +37,13 @@ export class UpdateChannelController {
     })
 
     Object.assign(channel, { title, description, slug: newSlug })
+
+    getIO().to(rooms.channel(channel.id)).emit('channel:updated', {
+      channelId: channel.id,
+      slug: channel.slug,
+      title: channel.title,
+      active: channel.active,
+    })
 
     return response.status(200).json(channel)
   }
