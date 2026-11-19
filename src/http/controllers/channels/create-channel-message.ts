@@ -2,7 +2,8 @@ import { Request, Response } from 'express'
 import { prisma } from '@/http/lib/prisma'
 import { BadRequestError } from '@/http/_errors/bad-request-error'
 
-import { io } from '@/server'
+import { getIO, rooms } from '@/socket'
+import { UnauthorizedError } from '@/http/_errors/unauthorized-error'
 
 export class CreateChannelMessageController {
   public async handle(request: Request, response: Response) {
@@ -18,6 +19,15 @@ export class CreateChannelMessageController {
 
     if (!channelFromSlug) {
       throw new BadRequestError('Channel not found')
+    }
+
+    const isMember = await prisma.member.findFirst({
+      where: { channelId: channelFromSlug.id, memberId: userId },
+      select: { id: true },
+    })
+
+    if (!isMember) {
+      throw new UnauthorizedError('You are not a member of this channel')
     }
 
     const message = await prisma.message.create({
@@ -41,7 +51,9 @@ export class CreateChannelMessageController {
       }
     })
 
-    io.to(slug).emit('channel:send_message', message)
+    getIO()
+      .to(rooms.channel(channelFromSlug.id))
+      .emit('channel:message', { channelId: channelFromSlug.id, message })
 
     return response.status(200).json(message)
   }

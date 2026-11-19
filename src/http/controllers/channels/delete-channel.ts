@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { prisma } from '@/http/lib/prisma'
 import { UnauthorizedError } from '@/http/_errors/unauthorized-error'
 import { BadRequestError } from '@/http/_errors'
+import { getIO, rooms } from '@/socket'
 
 export class DeleteChannelController {
   public async handle(request: Request, response: Response) {
@@ -45,6 +46,10 @@ export class DeleteChannelController {
         id: channel.id,
       }
     })
+
+    const io = getIO()
+    io.to(rooms.channel(channel.id)).emit('channel:deleted', { channelId: channel.id })
+    io.socketsLeave(rooms.channel(channel.id))
 
     return response.status(204).send()
   }

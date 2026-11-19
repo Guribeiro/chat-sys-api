@@ -2,7 +2,7 @@ import { BadRequestError } from "@/http/_errors/bad-request-error"
 import { prisma } from "@/http/lib/prisma"
 import { Request, Response } from 'express'
 
-import { io, userSocketMap } from '@/server'
+import { getIO, rooms } from '@/socket'
 
 export class CreateInviteController {
   async handle(request: Request, response: Response) {
@@ -68,16 +68,15 @@ export class CreateInviteController {
         authorId: user.id,
         channelId: channel.id,
         inviteeId: invitee.id,
-      }
+      },
+      include: {
+        author: { select: { id: true, name: true, email: true } },
+        channel: { select: { id: true, title: true, description: true } },
+      },
     })
 
-    const inviteeSocketId = userSocketMap.get(invitee.id)?.[0]
-
-    if (inviteeSocketId) {
-      io.to(inviteeSocketId).emit('notification:new_invite', {
-        invite
-      });
-    }
+    // Personal room: reaches every open tab of the invitee
+    getIO().to(rooms.user(invitee.id)).emit('notification:new_invite', { invite })
 
     return response.status(201).send({
       inviteId: invite.id

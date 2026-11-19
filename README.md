@@ -24,10 +24,49 @@ This is a Node.js application for a real-time chat system, built with Express, P
 
 ## Getting Started
 
-### Prerequisites
+### Running with Docker (recommended)
+
+The only requirement is Docker with Compose. This starts **PostgreSQL**, the **API** and the **web front-end**, all in watch mode (hot reload). Migrations are applied automatically on startup.
+
+> The `web` service is built from `../web`, so both repositories must be cloned side by side:
+> `chat-sys/api` and `chat-sys/web`.
+
+```bash
+docker compose up --build -d      # or: pnpm docker:up
+```
+
+- Web: http://localhost:8080
+- API: http://localhost:3333
+- Postgres: `localhost:5432` (user/password/db: `docker`)
+
+To run only the back-end (e.g. front-end with `pnpm dev` on the host): `docker compose up -d db api`.
+
+Useful commands:
+
+| Command | What it does |
+| --- | --- |
+| `docker compose exec api pnpm prisma db seed` (`pnpm docker:seed`) | Seed the database (login `gustavo@gmail.com` / `123456`) |
+| `docker compose logs -f api web` (`pnpm docker:logs`) | Follow API and web logs |
+| `docker compose down` (`pnpm docker:down`) | Stop containers (data is kept) |
+| `docker compose down -v` | Stop and **delete** the database volume |
+| `docker compose up --build -d` | Rebuild after changing `package.json` dependencies (API or web) |
+
+To seed automatically at startup: `RUN_SEED=true docker compose up -d`.
+Ports and credentials can be overridden through env vars / a `.env` file (`API_PORT`, `WEB_PORT`, `VITE_API_URL`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`).
+
+Creating a new migration after editing `prisma/schema.prisma`:
+
+```bash
+docker compose exec api pnpm prisma migrate dev --name <migration-name>
+```
+
+### Running locally (without Docker for the API)
+
+#### Prerequisites
 
 - Node.js (v22 or higher)
 - pnpm
+- A running Postgres (you can use only the database container: `docker compose up -d db`)
 
 ### Installation
 

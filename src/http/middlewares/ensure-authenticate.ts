@@ -1,6 +1,7 @@
 import { UnauthorizedError } from '@/http/_errors/unauthorized-error';
 import type { NextFunction, Request, Response } from 'express';
 import { verify } from 'jsonwebtoken';
+import { env } from '@/env';
 
 interface TokenPayload {
   iat: number;
@@ -23,7 +24,7 @@ export function ensureAuthentication(
 
 
   try {
-    const decoded = verify(token, 'secret');
+    const decoded = verify(token, env.JWT_SECRET);
 
     const { sub } = decoded as TokenPayload;
 

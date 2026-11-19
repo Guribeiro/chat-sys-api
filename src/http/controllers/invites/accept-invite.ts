@@ -1,6 +1,7 @@
 import { BadRequestError } from "@/http/_errors/bad-request-error"
 import { prisma } from "@/http/lib/prisma"
 import { Request, Response } from 'express'
+import { getIO, rooms } from '@/socket'
 
 export class AcceptInviteController {
   async handle(request: Request, response: Response) {
@@ -47,6 +48,9 @@ export class AcceptInviteController {
       }),
     ])
 
+    getIO()
+      .to(rooms.channel(invite.channelId))
+      .emit('channel:member_added', { channelId: invite.channelId, userId: invite.inviteeId })
 
     return response.status(204).send()
   }

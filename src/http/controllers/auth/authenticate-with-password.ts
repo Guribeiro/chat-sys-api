@@ -3,6 +3,7 @@ import { prisma } from '@/http/lib/prisma'
 import { BadRequestError } from '@/http/_errors/bad-request-error'
 import { compare } from 'bcryptjs'
 import { sign } from 'jsonwebtoken'
+import { env } from '@/env'
 
 export class AuthenticateWithPasswordController {
   public async handle(request: Request, response: Response) {
@@ -28,7 +29,7 @@ export class AuthenticateWithPasswordController {
       id: userFromEmail.id,
       email: userFromEmail.email,
     },
-      'secret',
+      env.JWT_SECRET,
       {
         expiresIn: '1d',
         subject: userFromEmail.id,
