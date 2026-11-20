@@ -60,6 +60,7 @@ export const reactionBody = z.object({
   // A single emoji (possibly with skin tone / ZWJ sequences), never arbitrary text
   emoji: z.string().trim().min(1).max(32).regex(/^(?=.*\p{Extended_Pictographic})[\p{Extended_Pictographic}\p{Emoji_Component}\u200d\ufe0f]+$/u, 'Invalid emoji'),
 })
+export const channelNotificationsBody = z.object({ muted: z.boolean() })
 export const messagesQuery = z.object({
   cursor: id.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(30),
@@ -79,4 +80,8 @@ export const listUsersQuery = z.object({
 export const memberChannelsQuery = z.object({
   status: z.enum(['active', 'deactive']).optional(),
   role: z.enum(['ADMIN', 'MEMBER']).optional(),
+})
+export const activityQuery = z.object({
+  cursor: id.optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
 })

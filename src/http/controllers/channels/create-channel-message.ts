@@ -4,7 +4,7 @@ import { BadRequestError } from '@/http/_errors'
 import { getMembership } from '@/http/lib/get-membership'
 import { messageSelect, toMessagePayload } from '@/http/lib/message-select'
 import { resolveChannelMentions } from '@/http/lib/mentions'
-import { notifyMentions } from '@/http/lib/notify-mentions'
+import { messagePreview, notifyActivity } from '@/http/lib/notify-activity'
 
 import { getIO, rooms } from '@/socket'
 
@@ -20,10 +20,11 @@ export class CreateChannelMessageController {
 
     const { channel } = await getMembership(slug, userId)
 
+    let parent: { id: string; authorId: string } | null = null
     if (replyToId) {
-      const parent = await prisma.message.findFirst({
+      parent = await prisma.message.findFirst({
         where: { id: replyToId, channelId: channel.id },
-        select: { id: true },
+        select: { id: true, authorId: true },
       })
       if (!parent) {
         throw new BadRequestError('The message you are replying to does not exist in this channel')
@@ -76,9 +77,11 @@ export class CreateChannelMessageController {
       channelId: channel.id,
       messageId: message.id,
       authorId: userId,
+      authorName: message.author.name,
+      preview: messagePreview(message),
     })
 
-    notifyMentions(channel, message, mentionedIds)
+    notifyActivity(channel, message, { mentionedIds, replyToAuthorId: parent?.authorId })
 
     return response.status(200).json(message)
   }

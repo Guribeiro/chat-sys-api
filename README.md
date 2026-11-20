@@ -9,6 +9,7 @@ This is a Node.js application for a real-time chat system, built with Express, P
 - 1:1 direct messages (a channel of type `DIRECT`)
 - Real-time messaging (Socket.io): cursor pagination, edit/delete, typing indicator, unread counts, presence
 - Replies, @mentions (with notifications), emoji reactions, Markdown
+- Activity feed (mentions + replies to me) and per-channel mute
 - File and image attachments (thumbnails), user avatars
 - Full-text search (Portuguese stemming) across every channel you belong to
 - Zod validation, helmet, CORS allow-list, rate limit on `/sessions`
@@ -129,6 +130,7 @@ queries are validated with Zod (`src/http/schemas.ts`); invalid input returns `4
 - `POST /:slug/messages/:id/reactions` - Toggle an emoji reaction
 - `POST /:slug/attachments` - Upload up to 5 files (`files` field, 10 MB each), then send their ids in a message
 - `POST /:slug/read` - Mark the channel as read
+- `PATCH /:slug/notifications` - `{ muted }` mute/unmute the channel for me (mentions and replies still notify)
 - `GET /:slug/invites` · `POST /:slug/invites` · `DELETE /:slug/invites/:inviteId` - Invites (admins)
 
 ### Me (`/me`)
@@ -136,7 +138,9 @@ queries are validated with Zod (`src/http/schemas.ts`); invalid input returns `4
 - `GET /` · `PATCH /` - Profile / change name
 - `PATCH /password` - Change password (other sessions are revoked)
 - `PUT /avatar` · `DELETE /avatar` - Upload (`avatar` field) / remove the avatar
-- `GET /channels` - My channels and DMs, with `unreadCount` (and `peer` for DMs)
+- `GET /channels` - My channels and DMs, with `unreadCount`, `unreadMentionCount`, `muted` (and `peer` for DMs)
+- `GET /activity?cursor=&limit=` - Mentions of me and replies to my messages, newest first, with `unreadCount`
+- `POST /activity/seen` - Mark the activity feed as seen
 - `POST /direct-messages` - Open or reuse a DM with `{ userId }`
 - `GET /search?q=` - Full-text search in all my channels
 - `GET /pending-invites` · `POST /invites/:id/accept` · `POST /invites/:id/reject`
