@@ -43,4 +43,18 @@ describe('direct messages and search', () => {
     const hidden = await api().get('/me/search').query({ q: 'orçamento' }).set(auth(carla)).expect(200)
     expect(hidden.body.results).toHaveLength(0)
   })
+
+  it('search snippets show mentions as @Name, never a piece of the token', async () => {
+    const ana = await createUser('Ana Busca')
+    const bia = await createUser('Bia Busca')
+    const { body: dm } = await api().post('/me/direct-messages').set(auth(ana)).send({ userId: bia.id })
+    // A leading token is where ts_headline used to start mid-uuid ("ab32-4ddd-…> Atualizei…")
+    await sendMessage(ana, dm.slug, `<@${bia.id}> Atualizei a planilha com os números da semana.`)
+
+    const { body } = await api().get('/me/search').query({ q: 'planilha' }).set(auth(bia)).expect(200)
+    const snippet: string = body.results[0].snippet
+    expect(snippet).toContain('\u0001planilha\u0002')
+    expect(snippet).not.toMatch(/[0-9a-f]{4}-[0-9a-f]{4}|<@|>/i)
+    expect(snippet).toContain('@Bia Busca')
+  })
 })
