@@ -15,6 +15,7 @@ import { DeleteChannelMessageController } from '../controllers/channels/delete-c
 import { ToggleMessageReactionController } from '../controllers/channels/toggle-message-reaction';
 import { UploadAttachmentsController } from '../controllers/attachments/upload-attachments';
 import { upload, MAX_FILES_PER_MESSAGE } from '@/lib/uploads';
+import { UpdateChannelNotificationsController } from '../controllers/channels/update-channel-notifications';
 import { MarkChannelReadController } from '../controllers/channels/mark-channel-read';
 import { RemoveChannelMemberController } from '../controllers/channels/remove-channel-member';
 import { CreateInviteController } from '../controllers/invites/create-invite';
@@ -25,6 +26,7 @@ import { validate } from '../middlewares/validate';
 import {
   channelBody,
   channelInviteParams,
+  channelNotificationsBody,
   channelStatusBody,
   createInviteBody,
   createMessageBody,
@@ -51,6 +53,7 @@ const createChannelMessageController = new CreateChannelMessageController()
 const updateChannelMessageController = new UpdateChannelMessageController()
 const deleteChannelMessageController = new DeleteChannelMessageController()
 const markChannelReadController = new MarkChannelReadController()
+const updateChannelNotificationsController = new UpdateChannelNotificationsController()
 const uploadAttachmentsController = new UploadAttachmentsController()
 const toggleMessageReactionController = new ToggleMessageReactionController()
 
@@ -80,6 +83,7 @@ channelsRouter.post('/:slug/messages/:messageId/reactions', validate({ params: m
 
 channelsRouter.post('/:slug/attachments', validate({ params: slugParams }), upload.array('files', MAX_FILES_PER_MESSAGE), uploadAttachmentsController.handle)
 
+channelsRouter.patch('/:slug/notifications', validate({ params: slugParams, body: channelNotificationsBody }), updateChannelNotificationsController.handle)
 channelsRouter.post('/:slug/read', validate({ params: slugParams }), markChannelReadController.handle)
 
 channelsRouter.get('/:slug/invites', validate({ params: slugParams }), getChannelInvitesController.handle)

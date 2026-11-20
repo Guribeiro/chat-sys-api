@@ -24,7 +24,14 @@ export interface ServerToClientEvents {
   'channel:message_updated': (payload: { channelId: string; message: SocketMessage }) => void
   'channel:message_deleted': (payload: { channelId: string; messageId: string; deletedAt: Date }) => void
   /** Sent to each member's personal room on every new message, used for unread badges */
-  'channel:activity': (payload: { channelId: string; messageId: string; authorId: string }) => void
+  'channel:activity': (payload: {
+    channelId: string
+    messageId: string
+    authorId: string
+    authorName: string | null
+    /** Plain-text preview, used for desktop notifications of DMs */
+    preview: string
+  }) => void
   'channel:typing': (payload: { channelId: string; userId: string; name: string | null }) => void
   'channel:message_reactions': (payload: {
     channelId: string
@@ -36,12 +43,15 @@ export interface ServerToClientEvents {
   'channel:member_added': (payload: { channelId: string; userId: string }) => void
   'channel:member_removed': (payload: { channelId: string; userId: string }) => void
   'notification:new_invite': (payload: { invite: SocketInvite }) => void
-  'notification:mention': (payload: {
+  /** Something addressed to me: a mention, or a reply to one of my messages */
+  'notification:activity': (payload: {
+    reason: 'mention' | 'reply'
     channelId: string
     channelSlug: string
     channelTitle: string
+    channelType: 'GROUP' | 'DIRECT'
     messageId: string
-    author: { id: string; name: string | null }
+    author: { id: string; name: string | null; avatarUrl: string | null }
     preview: string
   }) => void
 }

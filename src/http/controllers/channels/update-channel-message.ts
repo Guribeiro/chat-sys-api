@@ -4,7 +4,7 @@ import { BadRequestError, ForbiddenError, NotFoundError } from '@/http/_errors'
 import { getMembership } from '@/http/lib/get-membership'
 import { messageSelect, toMessagePayload } from '@/http/lib/message-select'
 import { resolveChannelMentions } from '@/http/lib/mentions'
-import { notifyMentions } from '@/http/lib/notify-mentions'
+import { notifyActivity } from '@/http/lib/notify-activity'
 
 import { getIO, rooms } from '@/socket'
 
@@ -55,7 +55,7 @@ export class UpdateChannelMessageController {
     getIO().to(rooms.channel(channel.id)).emit('channel:message_updated', { channelId: channel.id, message })
 
     // Only people who were not mentioned before get a new notification
-    notifyMentions(channel, message, mentionedIds.filter((id) => !previouslyMentioned.has(id)))
+    notifyActivity(channel, message, { mentionedIds: mentionedIds.filter((id) => !previouslyMentioned.has(id)) })
 
     return response.status(200).json(message)
   }

@@ -12,10 +12,11 @@ import { OpenDirectMessageController } from '../controllers/direct-messages/open
 import { SearchMessagesController } from '../controllers/search/search-messages';
 import { DeleteAvatarController, UpdateAvatarController } from '../controllers/me/update-avatar';
 import { upload } from '@/lib/uploads';
+import { GetActivityController, MarkActivitySeenController } from '../controllers/me/get-activity';
 
 import { ensureAuthentication } from '../middlewares/ensure-authenticate';
 import { validate } from '../middlewares/validate';
-import { changePasswordBody, directMessageBody, inviteParams, memberChannelsQuery, searchQuery, updateProfileBody } from '../schemas';
+import { activityQuery, changePasswordBody, directMessageBody, inviteParams, memberChannelsQuery, searchQuery, updateProfileBody } from '../schemas';
 
 const meRouter = Router()
 
@@ -30,6 +31,8 @@ const openDirectMessageController = new OpenDirectMessageController()
 const searchMessagesController = new SearchMessagesController()
 const updateAvatarController = new UpdateAvatarController()
 const deleteAvatarController = new DeleteAvatarController()
+const getActivityController = new GetActivityController()
+const markActivitySeenController = new MarkActivitySeenController()
 
 meRouter.use(ensureAuthentication)
 
@@ -40,6 +43,9 @@ meRouter.post('/direct-messages', validate({ body: directMessageBody }), openDir
 meRouter.get('/search', validate({ query: searchQuery }), searchMessagesController.handle)
 meRouter.put('/avatar', upload.single('avatar'), updateAvatarController.handle)
 meRouter.delete('/avatar', deleteAvatarController.handle)
+
+meRouter.get('/activity', validate({ query: activityQuery }), getActivityController.handle)
+meRouter.post('/activity/seen', markActivitySeenController.handle)
 
 meRouter.get('/channels', validate({ query: memberChannelsQuery }), getMemberChannelsController.handle)
 

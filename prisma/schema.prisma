@@ -31,6 +31,8 @@ model User {
   password  String   @map("password_hash")
   name      String?
   avatarUrl String?  @map("avatar_url")
+  /// Last time the user opened the activity panel (mentions + replies); newer items count as unread
+  activitySeenAt DateTime? @map("activity_seen_at")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -66,6 +68,8 @@ model Token {
 model Member {
   id   String @id @default(uuid())
   role Role   @default(MEMBER)
+  /// Muted channels never notify for regular messages (mentions and replies still do)
+  muted Boolean @default(false)
 
   member   User   @relation(fields: [memberId], references: [id])
   memberId String @map("member_id")
@@ -147,6 +151,7 @@ model Message {
   attachments Attachment[]
 
   @@index([channelId, createdAt])
+  @@index([parentId])
   @@map("messages")
 }
 
