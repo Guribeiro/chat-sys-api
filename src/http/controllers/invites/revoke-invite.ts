@@ -2,6 +2,7 @@ import { ForbiddenError, NotFoundError } from "@/http/_errors"
 import { prisma } from "@/http/lib/prisma"
 import { getMembership } from "@/http/lib/get-membership"
 import { Request, Response } from 'express'
+import { getIO, rooms } from '@/socket'
 
 export class RevokeInviteController {
   async handle(request: Request, response: Response) {
@@ -18,12 +19,12 @@ export class RevokeInviteController {
     })
 
     if (!invite) {
-      throw new NotFoundError('Invite not found')
+      throw new NotFoundError('Convite não encontrado')
     }
 
     // The author or any channel admin may revoke
     if (invite.authorId !== userId && !isAdmin) {
-      throw new ForbiddenError('You are not allowed to revoke this invite')
+      throw new ForbiddenError('Você não pode revogar este convite')
     }
 
     await prisma.invite.delete({
@@ -31,6 +32,9 @@ export class RevokeInviteController {
         id: invite.id,
       },
     })
+
+    // The invitee's pending list drops it live
+    getIO().to(rooms.user(invite.inviteeId)).emit('notification:invite_revoked', { inviteId: invite.id })
 
     return response.status(204).send()
   }

@@ -14,11 +14,11 @@ export class RejectInviteController {
     })
 
     if (!invite) {
-      throw new NotFoundError('Invite not found')
+      throw new NotFoundError('Convite não encontrado')
     }
 
     if (invite.inviteeId !== userId) {
-      throw new ForbiddenError('This invite belongs to another user.')
+      throw new ForbiddenError('Este convite pertence a outra pessoa.')
     }
 
     await prisma.invite.delete({

@@ -70,7 +70,7 @@ export async function processImage(buffer: Buffer): Promise<ProcessedImage> {
       thumbnail,
     }
   } catch {
-    throw new BadRequestError('The image file is invalid or corrupted')
+    throw new BadRequestError('O arquivo de imagem é inválido ou está corrompido')
   }
 }
 
@@ -82,7 +82,7 @@ export async function processAvatar(buffer: Buffer): Promise<Buffer> {
       .webp({ quality: 85 })
       .toBuffer()
   } catch {
-    throw new BadRequestError('The image file is invalid or corrupted')
+    throw new BadRequestError('O arquivo de imagem é inválido ou está corrompido')
   }
 }
 

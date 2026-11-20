@@ -18,6 +18,8 @@ import { upload, MAX_FILES_PER_MESSAGE } from '@/lib/uploads';
 import { UpdateChannelNotificationsController } from '../controllers/channels/update-channel-notifications';
 import { MarkChannelReadController } from '../controllers/channels/mark-channel-read';
 import { RemoveChannelMemberController } from '../controllers/channels/remove-channel-member';
+import { UpdateChannelMemberController } from '../controllers/channels/update-channel-member';
+import { TransferChannelOwnershipController } from '../controllers/channels/transfer-channel-ownership';
 import { CreateInviteController } from '../controllers/invites/create-invite';
 import { RevokeInviteController } from '../controllers/invites/revoke-invite';
 
@@ -31,6 +33,8 @@ import {
   createInviteBody,
   createMessageBody,
   memberParams,
+  memberRoleBody,
+  transferOwnershipBody,
   messageParams,
   messagesQuery,
   reactionBody,
@@ -47,6 +51,8 @@ const getChannelController = new GetChannelController()
 
 const getChannelMembersController = new GetChannelMembersController()
 const removeChannelMemberController = new RemoveChannelMemberController()
+const updateChannelMemberController = new UpdateChannelMemberController()
+const transferChannelOwnershipController = new TransferChannelOwnershipController()
 
 const getChannelMessagesController = new GetChannelMessagesController()
 const createChannelMessageController = new CreateChannelMessageController()
@@ -73,7 +79,9 @@ channelsRouter.put('/:slug', validate({ params: slugParams, body: channelBody })
 channelsRouter.patch('/:slug/active', validate({ params: slugParams, body: channelStatusBody }), updateChannelStatus.handle)
 
 channelsRouter.get('/:slug/members', validate({ params: slugParams }), getChannelMembersController.handle)
+channelsRouter.patch('/:slug/members/:memberId', validate({ params: memberParams, body: memberRoleBody }), updateChannelMemberController.handle)
 channelsRouter.delete('/:slug/members/:memberId', validate({ params: memberParams }), removeChannelMemberController.handle)
+channelsRouter.post('/:slug/transfer-ownership', validate({ params: slugParams, body: transferOwnershipBody }), transferChannelOwnershipController.handle)
 
 channelsRouter.get('/:slug/messages', validate({ params: slugParams, query: messagesQuery }), getChannelMessagesController.handle)
 channelsRouter.post('/:slug/messages', validate({ params: slugParams, body: createMessageBody }), createChannelMessageController.handle)

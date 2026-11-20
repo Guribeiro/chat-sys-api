@@ -9,7 +9,7 @@ export class GetProfileController {
       where: { id: request.user.id },
       select: { ...userSummarySelect, createdAt: true },
     })
-    if (!user) throw new NotFoundError('User not found')
+    if (!user) throw new NotFoundError('Usuário não encontrado')
     return response.status(200).json(user)
   }
 }

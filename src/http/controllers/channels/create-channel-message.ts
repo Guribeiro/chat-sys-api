@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { prisma } from '@/http/lib/prisma'
 import { BadRequestError } from '@/http/_errors'
 import { getMembership } from '@/http/lib/get-membership'
+import { ensureActiveChannel } from '@/http/lib/ensure-group-channel'
 import { messageSelect, toMessagePayload } from '@/http/lib/message-select'
 import { resolveChannelMentions } from '@/http/lib/mentions'
 import { messagePreview, notifyActivity } from '@/http/lib/notify-activity'
@@ -19,6 +20,7 @@ export class CreateChannelMessageController {
     }
 
     const { channel } = await getMembership(slug, userId)
+    ensureActiveChannel(channel)
 
     let parent: { id: string; authorId: string } | null = null
     if (replyToId) {
@@ -27,7 +29,7 @@ export class CreateChannelMessageController {
         select: { id: true, authorId: true },
       })
       if (!parent) {
-        throw new BadRequestError('The message you are replying to does not exist in this channel')
+        throw new BadRequestError('A mensagem que você está respondendo não existe neste canal')
       }
     }
 
@@ -37,7 +39,7 @@ export class CreateChannelMessageController {
         where: { id: { in: attachmentIds }, uploaderId: userId, channelId: channel.id, messageId: null },
       })
       if (usable !== attachmentIds.length) {
-        throw new BadRequestError('Some attachments are invalid or were already sent')
+        throw new BadRequestError('Alguns anexos são inválidos ou já foram enviados')
       }
     }
 

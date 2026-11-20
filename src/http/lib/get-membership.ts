@@ -18,7 +18,7 @@ export async function getMembership(slug: string, userId: string): Promise<Membe
   const channel = await prisma.channel.findUnique({ where: { slug } })
 
   if (!channel) {
-    throw new NotFoundError('Channel not found')
+    throw new NotFoundError('Canal não encontrado')
   }
 
   const member = await prisma.member.findUnique({
@@ -26,7 +26,7 @@ export async function getMembership(slug: string, userId: string): Promise<Membe
   })
 
   if (!member) {
-    throw new ForbiddenError('You are not a member of this channel')
+    throw new ForbiddenError('Você não é membro deste canal')
   }
 
   const isOwner = channel.ownerId === userId
@@ -39,7 +39,7 @@ export async function getAdminMembership(slug: string, userId: string): Promise<
   const membership = await getMembership(slug, userId)
 
   if (!membership.isAdmin) {
-    throw new ForbiddenError('You are not allowed to manage this channel')
+    throw new ForbiddenError('Você não administra este canal')
   }
 
   return membership

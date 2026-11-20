@@ -20,7 +20,7 @@ export class UpdateChannelController {
     if (newSlug !== channel.slug) {
       const slugTaken = await prisma.channel.findUnique({ where: { slug: newSlug }, select: { id: true } })
       if (slugTaken) {
-        throw new BadRequestError('Another channel already uses this title')
+        throw new BadRequestError('Já existe um canal com este título')
       }
     }
 

@@ -10,11 +10,14 @@ export class GetChannelMembersController {
 
     const members = await prisma.member.findMany({
       where: { channelId: channel.id },
+      orderBy: { createdAt: 'asc' },
       include: {
         member: { select: userSummarySelect }
       }
     })
 
-    return response.status(200).json(members)
+    return response.status(200).json(
+      members.map((member) => ({ ...member, isOwner: member.memberId === channel.ownerId })),
+    )
   }
 }

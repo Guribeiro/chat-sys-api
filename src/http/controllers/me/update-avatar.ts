@@ -10,8 +10,8 @@ export class UpdateAvatarController {
     const userId = request.user.id
     const file = request.file
 
-    if (!file) throw new BadRequestError('No image was sent (use the "avatar" field)')
-    if (!IMAGE_TYPES[file.mimetype]) throw new BadRequestError('The avatar must be an image')
+    if (!file) throw new BadRequestError('Nenhuma imagem foi enviada (use o campo "avatar")')
+    if (!IMAGE_TYPES[file.mimetype]) throw new BadRequestError('O avatar precisa ser uma imagem')
 
     // Always re-encoded: fixed size, no metadata (EXIF/GPS) leaks
     const avatar = await processAvatar(file.buffer)

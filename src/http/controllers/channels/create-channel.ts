@@ -12,7 +12,7 @@ export class CreateChannelController {
 
     const slugTaken = await prisma.channel.findUnique({ where: { slug }, select: { id: true } })
     if (slugTaken) {
-      throw new BadRequestError('A channel with this title already exists')
+      throw new BadRequestError('Já existe um canal com este título')
     }
 
     const channel = await prisma.channel.create({

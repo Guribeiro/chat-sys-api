@@ -23,11 +23,11 @@ export class ToggleMessageReactionController {
     })
 
     if (!message) {
-      throw new NotFoundError('Message not found')
+      throw new NotFoundError('Mensagem não encontrada')
     }
 
     if (message.deletedAt) {
-      throw new BadRequestError('You can not react to a deleted message')
+      throw new BadRequestError('Não é possível reagir a uma mensagem excluída')
     }
 
     const key = { messageId_userId_emoji: { messageId, userId, emoji } }
@@ -42,7 +42,7 @@ export class ToggleMessageReactionController {
         select: { emoji: true },
       })
       if (distinct.length >= MAX_DISTINCT_EMOJIS && !distinct.some((reaction) => reaction.emoji === emoji)) {
-        throw new BadRequestError('This message already has too many different reactions')
+        throw new BadRequestError('Esta mensagem já tem reações diferentes demais')
       }
       // upsert guards against a double click racing two creates
       await prisma.reaction.upsert({ where: key, create: { messageId, userId, emoji }, update: {} })

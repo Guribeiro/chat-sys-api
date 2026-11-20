@@ -22,15 +22,15 @@ export class UpdateChannelMessageController {
     })
 
     if (!existing) {
-      throw new NotFoundError('Message not found')
+      throw new NotFoundError('Mensagem não encontrada')
     }
 
     if (existing.authorId !== userId) {
-      throw new ForbiddenError('You can only edit your own messages')
+      throw new ForbiddenError('Você só pode editar as suas mensagens')
     }
 
     if (existing.deletedAt) {
-      throw new BadRequestError('A deleted message can not be edited')
+      throw new BadRequestError('Uma mensagem excluída não pode ser editada')
     }
 
     const mentionedIds = await resolveChannelMentions(channel.id, content)

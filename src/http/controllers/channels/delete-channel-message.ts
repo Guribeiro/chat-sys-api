@@ -19,12 +19,12 @@ export class DeleteChannelMessageController {
     })
 
     if (!existing) {
-      throw new NotFoundError('Message not found')
+      throw new NotFoundError('Mensagem não encontrada')
     }
 
     // Authors delete their own messages; channel admins can moderate any message
     if (existing.authorId !== userId && !isAdmin) {
-      throw new ForbiddenError('You are not allowed to delete this message')
+      throw new ForbiddenError('Você não pode excluir esta mensagem')
     }
 
     if (!existing.deletedAt) {

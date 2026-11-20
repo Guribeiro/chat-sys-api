@@ -17,7 +17,7 @@ export class ResetPasswordController {
 
     // Tokens without expiresAt were created before expiration existed: treat them as expired
     if (!tokenFromCode || !tokenFromCode.expiresAt || tokenFromCode.expiresAt < new Date()) {
-      throw new BadRequestError('invalid token')
+      throw new BadRequestError('O link de recuperação é inválido ou expirou')
     }
 
     const passwordHashed = await hash(password, 8)

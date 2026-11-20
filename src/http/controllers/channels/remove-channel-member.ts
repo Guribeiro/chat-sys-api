@@ -20,16 +20,16 @@ export class RemoveChannelMemberController {
     })
 
     if (!memberFromChannel) {
-      throw new NotFoundError('Member not found')
+      throw new NotFoundError('Membro não encontrado')
     }
 
     if (memberFromChannel.memberId === channel.ownerId) {
-      throw new BadRequestError('The channel owner can not be removed')
+      throw new BadRequestError('O dono do canal não pode ser removido')
     }
 
     // Admins may remove members; only the owner may remove other admins
     if (memberFromChannel.role === 'ADMIN' && !isOwner) {
-      throw new ForbiddenError('Only the channel owner can remove an admin')
+      throw new ForbiddenError('Somente o dono do canal pode remover um administrador')
     }
 
     await prisma.member.delete({
