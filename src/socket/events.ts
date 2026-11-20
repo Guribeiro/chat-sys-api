@@ -65,6 +65,11 @@ export interface ClientToServerEvents {
   'channel:typing': (payload: { channelId: string }) => void
 }
 
+/** Server-to-server events (between realtime instances, or from the API through the Redis emitter) */
+export interface ServerSideEvents {
+  'user:renamed': (payload: { userId: string; name: string }) => void
+}
+
 export interface SocketData {
   userId: string
   /** Display name, loaded lazily the first time it is needed (typing indicator) */

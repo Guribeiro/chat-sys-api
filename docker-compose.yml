@@ -17,12 +17,26 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    container_name: chat-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build: .
     container_name: chat-api
     restart: unless-stopped
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       mailpit:
         condition: service_started
@@ -37,6 +51,10 @@ services:
       # Dev e-mails are caught by Mailpit (http://localhost:8025)
       SMTP_HOST: ${SMTP_HOST:-mailpit}
       SMTP_PORT: ${SMTP_PORT:-1025}
+      REDIS_URL: redis://redis:6379
+      # Socket.io runs in the "realtime" service; the API only publishes events through Redis.
+      # Set to "embedded" to serve both from this container (then the realtime service is not needed).
+      REALTIME_MODE: ${REALTIME_MODE:-standalone}
     ports:
       - "${API_PORT:-3333}:3333"
     volumes:
@@ -45,6 +63,36 @@ services:
       - /app/node_modules
       # Uploaded files (attachments, avatars) survive container rebuilds
       - uploads:/app/uploads
+
+  # Socket.io only (src/realtime-server.ts): same image and code as the API, separate process.
+  # Restarting/deploying the API no longer drops the WebSocket connections.
+  realtime:
+    build: .
+    container_name: chat-realtime
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENTRY: src/realtime-server.ts
+      RUN_MIGRATIONS: "false"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-docker}:${POSTGRES_PASSWORD:-docker}@db:5432/${POSTGRES_DB:-docker}?schema=public
+      PORT: 3333
+      HOST: 0.0.0.0
+      ENDPOINT_URL: ${ENDPOINT_URL:-http://localhost:3333}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      WEB_URL: ${WEB_URL:-http://localhost:8080}
+      REDIS_URL: redis://redis:6379
+      REALTIME_MODE: standalone
+      REALTIME_PORT: 3334
+    ports:
+      - "${REALTIME_PORT:-3334}:3334"
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - /app/node_modules
 
   mailpit:
     image: axllent/mailpit:v1.21.8
@@ -62,6 +110,8 @@ services:
     environment:
       # Read by the browser (running on the host), so it points to localhost, not "api"
       VITE_API_URL: ${VITE_API_URL:-http://localhost:3333}
+      # Socket.io endpoint (the realtime service). Point it to the API when REALTIME_MODE=embedded.
+      VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost:3334}
     ports:
       - "${WEB_PORT:-8080}:8080"
     volumes:

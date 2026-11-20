@@ -13,4 +13,7 @@ export const testEnv = {
   UPLOADS_DIR: '/tmp/chat-test-uploads',
   // No SMTP in tests: e-mails are only logged
   SMTP_HOST: '',
+  // Socket.io inside the test process, without Redis (the api container sets standalone + REDIS_URL)
+  REALTIME_MODE: 'embedded',
+  REDIS_URL: '',
 }

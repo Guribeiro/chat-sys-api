@@ -2,7 +2,8 @@ import { ForbiddenError, NotFoundError } from "@/http/_errors"
 import { prisma } from "@/http/lib/prisma"
 import { getMembership } from "@/http/lib/get-membership"
 import { Request, Response } from 'express'
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 
 export class RevokeInviteController {
   async handle(request: Request, response: Response) {
@@ -34,7 +35,7 @@ export class RevokeInviteController {
     })
 
     // The invitee's pending list drops it live
-    getIO().to(rooms.user(invite.inviteeId)).emit('notification:invite_revoked', { inviteId: invite.id })
+    getPublisher().to(rooms.user(invite.inviteeId)).emit('notification:invite_revoked', { inviteId: invite.id })
 
     return response.status(204).send()
   }

@@ -4,7 +4,8 @@ import { randomBytes } from 'node:crypto'
 import { prisma } from '@/http/lib/prisma'
 import { BadRequestError, NotFoundError } from '@/http/_errors'
 import { userSummarySelect } from '@/http/lib/message-select'
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 
 /**
  * Opens (or reuses) the 1:1 conversation between me and another user. A DM is a regular
@@ -55,7 +56,7 @@ export class OpenDirectMessageController {
     })
 
     // The other person's sidebar picks the conversation up right away
-    getIO().to(rooms.user(peerId)).emit('channel:member_added', { channelId: channel.id, userId: peerId })
+    getPublisher().to(rooms.user(peerId)).emit('channel:member_added', { channelId: channel.id, userId: peerId })
 
     return response.status(201).json({ ...channel, peer })
   }

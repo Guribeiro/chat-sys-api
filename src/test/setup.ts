@@ -5,8 +5,9 @@ import { app } from '@/app'
 import { initSocket } from '@/socket'
 import { prisma } from '@/http/lib/prisma'
 
-// Controllers emit Socket.io events, so the server must exist (nobody listens in tests)
-initSocket(createServer(app))
+// Controllers emit Socket.io events, so the server must exist (nobody listens in tests).
+// Without REDIS_URL initSocket has no await before registering the server, so it is ready right away.
+void initSocket(createServer(app))
 
 beforeEach(async () => {
   await prisma.$executeRawUnsafe(

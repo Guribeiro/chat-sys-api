@@ -4,7 +4,8 @@ import { Request, Response } from 'express'
 
 import { BadRequestError } from '@/http/_errors'
 import { getAdminMembership } from '@/http/lib/get-membership'
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 import { createSlug } from '@/utils/create-slug'
 
 export class UpdateChannelController {
@@ -33,7 +34,7 @@ export class UpdateChannelController {
       }
     })
 
-    getIO().to(rooms.channel(updated.id)).emit('channel:updated', {
+    getPublisher().to(rooms.channel(updated.id)).emit('channel:updated', {
       channelId: updated.id,
       slug: updated.slug,
       title: updated.title,

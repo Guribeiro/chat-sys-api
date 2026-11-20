@@ -5,7 +5,7 @@ import { prisma } from '@/http/lib/prisma'
 import { BadRequestError, NotFoundError } from '@/http/_errors'
 import { userSummarySelect } from '@/http/lib/message-select'
 import { hashToken, revokeRefreshTokens } from '@/lib/session'
-import { getIO, rooms } from '@/socket'
+import { updateCachedUserName } from '@/socket/publisher'
 
 export class UpdateProfileController {
   public async handle(request: Request, response: Response) {
@@ -19,8 +19,7 @@ export class UpdateProfileController {
     })
 
     // Open sockets cache the display name (typing indicator)
-    const sockets = await getIO().in(rooms.user(userId)).fetchSockets()
-    sockets.forEach((socket) => { socket.data.name = name })
+    await updateCachedUserName(userId, name)
 
     return response.status(200).json(user)
   }
