@@ -1,7 +1,8 @@
 import { ForbiddenError, NotFoundError } from "@/http/_errors"
 import { prisma } from "@/http/lib/prisma"
 import { Request, Response } from 'express'
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 
 export class AcceptInviteController {
   async handle(request: Request, response: Response) {
@@ -40,7 +41,7 @@ export class AcceptInviteController {
       }),
     ])
 
-    getIO()
+    getPublisher()
       .to(rooms.channel(invite.channelId))
       .emit('channel:member_added', { channelId: invite.channelId, userId: invite.inviteeId })
 

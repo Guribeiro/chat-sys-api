@@ -3,7 +3,8 @@ import { prisma } from '@/http/lib/prisma'
 import { ForbiddenError, NotFoundError } from '@/http/_errors'
 import { getMembership } from '@/http/lib/get-membership'
 
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 import { deleteQuietly } from '@/lib/storage'
 
 export class DeleteChannelMessageController {
@@ -46,7 +47,7 @@ export class DeleteChannelMessageController {
       ])
       await deleteQuietly(files.flatMap(({ storageKey, thumbnailKey }) => [storageKey, thumbnailKey]))
 
-      getIO().to(rooms.channel(channel.id)).emit('channel:message_deleted', {
+      getPublisher().to(rooms.channel(channel.id)).emit('channel:message_deleted', {
         channelId: channel.id,
         messageId,
         deletedAt: deletedAt!,

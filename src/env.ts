@@ -21,6 +21,15 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   MAIL_FROM: z.string().default('Realtime chat <no-reply@chat.local>'),
+  // Realtime. Without REDIS_URL everything lives in this process (single instance only).
+  REDIS_URL: z.string().url().optional().or(z.literal('').transform(() => undefined)),
+  // embedded: Socket.io runs inside the API. standalone: it runs in src/realtime-server.ts and the
+  // API only publishes events through Redis (requires REDIS_URL).
+  REALTIME_MODE: z.enum(['embedded', 'standalone']).default('embedded'),
+  REALTIME_PORT: z.coerce.number().default(3334),
+}).refine((env) => env.REALTIME_MODE === 'embedded' || env.REDIS_URL, {
+  message: 'REALTIME_MODE=standalone requires REDIS_URL',
+  path: ['REDIS_URL'],
 });
 
 

@@ -3,7 +3,8 @@ import { prisma } from '@/http/lib/prisma'
 import { Request, Response } from 'express'
 
 import { getAdminMembership } from '@/http/lib/get-membership'
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 
 export class UpdateChannelStatus {
   public async handle(request: Request, response: Response): Promise<Response> {
@@ -20,7 +21,7 @@ export class UpdateChannelStatus {
       }
     })
 
-    getIO().to(rooms.channel(updated.id)).emit('channel:updated', {
+    getPublisher().to(rooms.channel(updated.id)).emit('channel:updated', {
       channelId: updated.id,
       slug: updated.slug,
       title: updated.title,

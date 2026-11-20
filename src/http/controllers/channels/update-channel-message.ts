@@ -6,7 +6,8 @@ import { messageSelect, toMessagePayload } from '@/http/lib/message-select'
 import { resolveChannelMentions } from '@/http/lib/mentions'
 import { notifyActivity } from '@/http/lib/notify-activity'
 
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 
 export class UpdateChannelMessageController {
   public async handle(request: Request, response: Response) {
@@ -52,7 +53,7 @@ export class UpdateChannelMessageController {
     ])
     const message = toMessagePayload(saved)
 
-    getIO().to(rooms.channel(channel.id)).emit('channel:message_updated', { channelId: channel.id, message })
+    getPublisher().to(rooms.channel(channel.id)).emit('channel:message_updated', { channelId: channel.id, message })
 
     // Only people who were not mentioned before get a new notification
     notifyActivity(channel, message, { mentionedIds: mentionedIds.filter((id) => !previouslyMentioned.has(id)) })

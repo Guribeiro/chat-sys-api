@@ -4,7 +4,8 @@ import { BadRequestError, NotFoundError } from '@/http/_errors'
 import { getMembership } from '@/http/lib/get-membership'
 import { reactionSelect } from '@/http/lib/message-select'
 
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 
 /** Distinct emojis a single message may collect */
 const MAX_DISTINCT_EMOJIS = 20
@@ -54,7 +55,7 @@ export class ToggleMessageReactionController {
       select: reactionSelect.select,
     })
 
-    getIO().to(rooms.channel(channel.id)).emit('channel:message_reactions', {
+    getPublisher().to(rooms.channel(channel.id)).emit('channel:message_reactions', {
       channelId: channel.id,
       messageId,
       reactions,

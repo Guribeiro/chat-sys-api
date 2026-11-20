@@ -3,7 +3,8 @@ import { Request, Response } from 'express'
 import { prisma } from '@/http/lib/prisma'
 import { ForbiddenError } from '@/http/_errors'
 import { getMembership } from '@/http/lib/get-membership'
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 import { deleteQuietly } from '@/lib/storage'
 
 export class DeleteChannelController {
@@ -31,7 +32,7 @@ export class DeleteChannelController {
 
     await deleteQuietly(files.flatMap(({ storageKey, thumbnailKey }) => [storageKey, thumbnailKey]))
 
-    const io = getIO()
+    const io = getPublisher()
     io.to(rooms.channel(channel.id)).emit('channel:deleted', { channelId: channel.id })
     io.socketsLeave(rooms.channel(channel.id))
 
