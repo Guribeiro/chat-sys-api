@@ -1,5 +1,6 @@
-import { BadRequestError } from "@/http/_errors/bad-request-error"
+import { ForbiddenError, NotFoundError } from "@/http/_errors"
 import { prisma } from "@/http/lib/prisma"
+import { getMembership } from "@/http/lib/get-membership"
 import { Request, Response } from 'express'
 
 export class RevokeInviteController {
@@ -7,43 +8,27 @@ export class RevokeInviteController {
     const userId = request.user.id
     const { slug, inviteId } = request.params
 
-    const channel = await prisma.channel.findUnique({
-      where: {
-        slug,
-      },
-    })
+    const { channel, isAdmin } = await getMembership(slug, userId)
 
-    if (!channel) {
-      throw new BadRequestError('Channel not found')
-    }
-
-    const invite = await prisma.invite.findUnique({
+    const invite = await prisma.invite.findFirst({
       where: {
-        id: inviteId
+        id: inviteId,
+        channelId: channel.id,
       }
     })
 
     if (!invite) {
-      throw new BadRequestError('Invite not found')
+      throw new NotFoundError('Invite not found')
     }
 
-    const user = await prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
-    })
-
-    if (!user) {
-      throw new BadRequestError('User not found.')
-    }
-
-    if (invite.authorId !== userId) {
-      throw new BadRequestError('You are not the author of this invite')
+    // The author or any channel admin may revoke
+    if (invite.authorId !== userId && !isAdmin) {
+      throw new ForbiddenError('You are not allowed to revoke this invite')
     }
 
     await prisma.invite.delete({
       where: {
-        id: inviteId,
+        id: invite.id,
       },
     })
 

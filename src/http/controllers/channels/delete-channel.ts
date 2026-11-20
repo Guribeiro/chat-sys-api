@@ -1,51 +1,35 @@
+import { ensureGroupChannel } from '@/http/lib/ensure-group-channel'
 import { Request, Response } from 'express'
 import { prisma } from '@/http/lib/prisma'
-import { UnauthorizedError } from '@/http/_errors/unauthorized-error'
-import { BadRequestError } from '@/http/_errors'
+import { ForbiddenError } from '@/http/_errors'
+import { getMembership } from '@/http/lib/get-membership'
 import { getIO, rooms } from '@/socket'
+import { deleteQuietly } from '@/lib/storage'
 
 export class DeleteChannelController {
   public async handle(request: Request, response: Response) {
-    const userId = request.user.id
     const { slug } = request.params
+    const { channel, isOwner } = await getMembership(slug, request.user.id)
+    ensureGroupChannel(channel)
 
-    const userFromId = await prisma.user.findUnique({
-      where: {
-        id: userId
-      }
-    })
-
-    if (!userFromId) {
-      throw new UnauthorizedError('You are not authorized to perform this action')
+    // Deleting is destructive: only the owner may do it
+    if (!isOwner) {
+      throw new ForbiddenError('Only the channel owner can delete it')
     }
 
-    const member = await prisma.member.findFirst({
-      where: {
-        memberId: userId,
-        role: 'ADMIN',
-      }
+    // Rows cascade with the channel, the files on disk do not
+    const files = await prisma.attachment.findMany({
+      where: { channelId: channel.id },
+      select: { storageKey: true, thumbnailKey: true },
     })
-
-    if (!member) {
-      throw new UnauthorizedError('You are not authorized to perform this action')
-    }
-
-    const channel = await prisma.channel.findUnique({
-      where: {
-        slug,
-        ownerId: userFromId.id,
-      }
-    })
-
-    if (!channel) {
-      throw new BadRequestError('Channel not found')
-    }
 
     await prisma.channel.delete({
       where: {
         id: channel.id,
       }
     })
+
+    await deleteQuietly(files.flatMap(({ storageKey, thumbnailKey }) => [storageKey, thumbnailKey]))
 
     const io = getIO()
     io.to(rooms.channel(channel.id)).emit('channel:deleted', { channelId: channel.id })

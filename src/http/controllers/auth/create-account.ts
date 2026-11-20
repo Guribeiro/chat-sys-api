@@ -5,7 +5,7 @@ import { hash } from 'bcryptjs'
 
 export class CreateAccountController {
   public async handle(request: Request, response: Response) {
-    const { name, email, password } = request.body
+    const { name, email, password } = request.body as { name: string; email: string; password: string }
 
     const userFromEmail = await prisma.user.findUnique({
       where: {
@@ -17,7 +17,7 @@ export class CreateAccountController {
       throw new BadRequestError('email is already been taken')
     }
 
-    const passwordHashed = await hash(password, 6)
+    const passwordHashed = await hash(password, 8)
 
     await prisma.user.create({
       data: {

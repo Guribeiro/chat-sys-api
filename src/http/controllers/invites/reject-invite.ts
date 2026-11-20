@@ -1,4 +1,4 @@
-import { BadRequestError } from "@/http/_errors/bad-request-error"
+import { ForbiddenError, NotFoundError } from "@/http/_errors"
 import { prisma } from "@/http/lib/prisma"
 import { Request, Response } from 'express'
 
@@ -14,21 +14,11 @@ export class RejectInviteController {
     })
 
     if (!invite) {
-      throw new BadRequestError('Invite not found')
-    }
-
-    const user = await prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
-    })
-
-    if (!user) {
-      throw new BadRequestError('User not found.')
+      throw new NotFoundError('Invite not found')
     }
 
     if (invite.inviteeId !== userId) {
-      throw new BadRequestError('This invite belongs to another user.')
+      throw new ForbiddenError('This invite belongs to another user.')
     }
 
     await prisma.invite.delete({

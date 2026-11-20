@@ -1,34 +1,20 @@
-import { BadRequestError } from "@/http/_errors/bad-request-error"
+import { ensureGroupChannel } from '@/http/lib/ensure-group-channel'
+import { BadRequestError, NotFoundError } from "@/http/_errors"
 import { prisma } from "@/http/lib/prisma"
+import { getAdminMembership } from "@/http/lib/get-membership"
 import { Request, Response } from 'express'
+import type { Role } from '@prisma/client'
 
 import { getIO, rooms } from '@/socket'
 
 export class CreateInviteController {
   async handle(request: Request, response: Response) {
-    const user_id = request.user.id
+    const userId = request.user.id
     const { slug } = request.params
-    const { invitee_id, role = 'ADMIN' } = request.body
+    const { invitee_id, role } = request.body as { invitee_id: string; role: Role }
 
-    const channel = await prisma.channel.findUnique({
-      where: {
-        slug,
-      },
-    })
-
-    if (!channel) {
-      throw new BadRequestError('Channel not found')
-    }
-
-    const user = await prisma.user.findUnique({
-      where: {
-        id: user_id,
-      },
-    })
-
-    if (!user) {
-      throw new BadRequestError('User not found.')
-    }
+    const { channel } = await getAdminMembership(slug, userId)
+    ensureGroupChannel(channel)
 
     const invitee = await prisma.user.findUnique({
       where: {
@@ -37,25 +23,19 @@ export class CreateInviteController {
     })
 
     if (!invitee) {
-      throw new BadRequestError('Invitee not found.')
+      throw new NotFoundError('Invitee not found.')
     }
 
-    const memberFromChannelAndInviteeId = await prisma.member.findFirst({
-      where: {
-        channelId: channel.id,
-        memberId: invitee.id,
-      },
+    const memberFromChannelAndInviteeId = await prisma.member.findUnique({
+      where: { channelId_memberId: { channelId: channel.id, memberId: invitee.id } },
     })
 
     if (memberFromChannelAndInviteeId) {
       throw new BadRequestError('You can not invite someone who is already a member of this channel')
     }
 
-    const inviteFromChannelAndInvitee = await prisma.invite.findFirst({
-      where: {
-        channelId: channel.id,
-        inviteeId: invitee.id,
-      },
+    const inviteFromChannelAndInvitee = await prisma.invite.findUnique({
+      where: { channelId_inviteeId: { channelId: channel.id, inviteeId: invitee.id } },
     })
 
     if (inviteFromChannelAndInvitee) {
@@ -65,7 +45,7 @@ export class CreateInviteController {
     const invite = await prisma.invite.create({
       data: {
         role,
-        authorId: user.id,
+        authorId: userId,
         channelId: channel.id,
         inviteeId: invitee.id,
       },
