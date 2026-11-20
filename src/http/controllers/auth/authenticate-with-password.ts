@@ -2,12 +2,11 @@ import { Request, Response } from 'express'
 import { prisma } from '@/http/lib/prisma'
 import { BadRequestError } from '@/http/_errors/bad-request-error'
 import { compare } from 'bcryptjs'
-import { sign } from 'jsonwebtoken'
-import { env } from '@/env'
+import { issueSession } from '@/lib/session'
 
 export class AuthenticateWithPasswordController {
   public async handle(request: Request, response: Response) {
-    const { email, password } = request.body
+    const { email, password } = request.body as { email: string; password: string }
 
     const userFromEmail = await prisma.user.findUnique({
       where: {
@@ -25,23 +24,16 @@ export class AuthenticateWithPasswordController {
       throw new BadRequestError('invalid credentials')
     }
 
-    const token = sign({
-      id: userFromEmail.id,
-      email: userFromEmail.email,
-    },
-      env.JWT_SECRET,
-      {
-        expiresIn: '1d',
-        subject: userFromEmail.id,
-      }
-    )
+    const { token, refreshToken } = await issueSession(userFromEmail)
 
     return response.status(200).json({
       token,
+      refreshToken,
       user: {
         id: userFromEmail.id,
         name: userFromEmail.name,
         email: userFromEmail.email,
+        avatarUrl: userFromEmail.avatarUrl,
       }
     })
   }

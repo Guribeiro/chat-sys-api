@@ -1,43 +1,35 @@
+import { ensureGroupChannel } from '@/http/lib/ensure-group-channel'
 import { Request, Response } from 'express'
 import { prisma } from '@/http/lib/prisma'
-import { BadRequestError } from '@/http/_errors/bad-request-error'
-
-import { UnauthorizedError } from '@/http/_errors/unauthorized-error'
+import { BadRequestError, ForbiddenError, NotFoundError } from '@/http/_errors'
+import { getAdminMembership } from '@/http/lib/get-membership'
 import { getIO, rooms } from '@/socket'
 
 export class RemoveChannelMemberController {
   public async handle(request: Request, response: Response) {
-    const userId = request.user.id
-    const { slug } = request.params
-    const { memberId } = request.params
+    const { slug, memberId } = request.params
 
-
-    const channelFromSlug = await prisma.channel.findUnique({
-      where: {
-        ownerId: userId,
-        slug
-      }
-    })
-
-    if (!channelFromSlug) {
-      throw new BadRequestError('Channel not found')
-    }
-
-    if (channelFromSlug.ownerId !== userId) {
-      throw new UnauthorizedError('You are not the owner of this channel')
-    }
-
+    const { channel, isOwner } = await getAdminMembership(slug, request.user.id)
+    ensureGroupChannel(channel)
 
     const memberFromChannel = await prisma.member.findFirst({
       where: {
-        channelId: channelFromSlug.id,
+        channelId: channel.id,
         id: memberId,
       }
     })
 
-
     if (!memberFromChannel) {
-      throw new BadRequestError('Member not found')
+      throw new NotFoundError('Member not found')
+    }
+
+    if (memberFromChannel.memberId === channel.ownerId) {
+      throw new BadRequestError('The channel owner can not be removed')
+    }
+
+    // Admins may remove members; only the owner may remove other admins
+    if (memberFromChannel.role === 'ADMIN' && !isOwner) {
+      throw new ForbiddenError('Only the channel owner can remove an admin')
     }
 
     await prisma.member.delete({
@@ -47,8 +39,8 @@ export class RemoveChannelMemberController {
     })
 
     const io = getIO()
-    const channelRoom = rooms.channel(channelFromSlug.id)
-    const payload = { channelId: channelFromSlug.id, userId: memberFromChannel.memberId }
+    const channelRoom = rooms.channel(channel.id)
+    const payload = { channelId: channel.id, userId: memberFromChannel.memberId }
 
     // Notify the channel and the removed user, then pull their sockets out of the room
     io.to(channelRoom).to(rooms.user(memberFromChannel.memberId)).emit('channel:member_removed', payload)

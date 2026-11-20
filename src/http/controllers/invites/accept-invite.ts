@@ -1,4 +1,4 @@
-import { BadRequestError } from "@/http/_errors/bad-request-error"
+import { ForbiddenError, NotFoundError } from "@/http/_errors"
 import { prisma } from "@/http/lib/prisma"
 import { Request, Response } from 'express'
 import { getIO, rooms } from '@/socket'
@@ -15,31 +15,23 @@ export class AcceptInviteController {
     })
 
     if (!invite) {
-      throw new BadRequestError('Invite not found')
-    }
-
-
-    const user = await prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
-    })
-
-    if (!user) {
-      throw new BadRequestError('User not found.')
+      throw new NotFoundError('Invite not found')
     }
 
     if (invite.inviteeId !== userId) {
-      throw new BadRequestError('This invite belongs to another user.')
+      throw new ForbiddenError('This invite belongs to another user.')
     }
 
     await prisma.$transaction([
-      prisma.member.create({
-        data: {
+      // upsert: accepting is idempotent even if the user somehow already is a member
+      prisma.member.upsert({
+        where: { channelId_memberId: { channelId: invite.channelId, memberId: invite.inviteeId } },
+        create: {
           memberId: invite.inviteeId,
           role: invite.role,
           channelId: invite.channelId,
         },
+        update: {},
       }),
       prisma.invite.delete({
         where: {

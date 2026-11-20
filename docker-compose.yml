@@ -24,6 +24,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-docker}:${POSTGRES_PASSWORD:-docker}@db:5432/${POSTGRES_DB:-docker}?schema=public
       PORT: 3333
@@ -32,12 +34,24 @@ services:
       RUN_SEED: ${RUN_SEED:-false}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
       WEB_URL: ${WEB_URL:-http://localhost:8080}
+      # Dev e-mails are caught by Mailpit (http://localhost:8025)
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
     ports:
       - "${API_PORT:-3333}:3333"
     volumes:
       - ./src:/app/src
       - ./prisma:/app/prisma
       - /app/node_modules
+      # Uploaded files (attachments, avatars) survive container rebuilds
+      - uploads:/app/uploads
+
+  mailpit:
+    image: axllent/mailpit:v1.21.8
+    container_name: chat-mailpit
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_PORT:-8025}:8025"
 
   web:
     build: ../web
@@ -56,3 +70,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:

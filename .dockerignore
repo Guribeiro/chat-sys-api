@@ -4,3 +4,6 @@ dist
 .env
 prisma/dev.db
 *.log
+
+# Local storage driver
+uploads/

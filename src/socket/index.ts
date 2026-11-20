@@ -68,6 +68,18 @@ export function initSocket(httpServer: HttpServer): IO {
       if (channel) await socket.leave(rooms.channel(channel.id))
     })
 
+    // Ephemeral: relayed to the rest of the room, never stored. Only for rooms this socket joined.
+    socket.on('channel:typing', async ({ channelId }) => {
+      if (typeof channelId !== 'string' || !socket.rooms.has(rooms.channel(channelId))) return
+
+      if (socket.data.name === undefined) {
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } })
+        socket.data.name = user?.name ?? null
+      }
+
+      socket.to(rooms.channel(channelId)).emit('channel:typing', { channelId, userId, name: socket.data.name })
+    })
+
     socket.on('disconnect', () => {
       const remaining = (presence.get(userId) ?? 1) - 1
       if (remaining > 0) {

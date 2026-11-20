@@ -1,59 +1,84 @@
 import { Request, Response } from 'express'
 import { prisma } from '@/http/lib/prisma'
-import { BadRequestError } from '@/http/_errors/bad-request-error'
+import { BadRequestError } from '@/http/_errors'
+import { getMembership } from '@/http/lib/get-membership'
+import { messageSelect, toMessagePayload } from '@/http/lib/message-select'
+import { resolveChannelMentions } from '@/http/lib/mentions'
+import { notifyMentions } from '@/http/lib/notify-mentions'
 
 import { getIO, rooms } from '@/socket'
-import { UnauthorizedError } from '@/http/_errors/unauthorized-error'
 
 export class CreateChannelMessageController {
   public async handle(request: Request, response: Response) {
     const userId = request.user.id
     const { slug } = request.params
-    const { content } = request.body
+    const { content, replyToId, attachmentIds = [] } = request.body as {
+      content?: string
+      replyToId?: string
+      attachmentIds?: string[]
+    }
 
-    const channelFromSlug = await prisma.channel.findUnique({
-      where: {
-        slug
+    const { channel } = await getMembership(slug, userId)
+
+    if (replyToId) {
+      const parent = await prisma.message.findFirst({
+        where: { id: replyToId, channelId: channel.id },
+        select: { id: true },
+      })
+      if (!parent) {
+        throw new BadRequestError('The message you are replying to does not exist in this channel')
       }
-    })
-
-    if (!channelFromSlug) {
-      throw new BadRequestError('Channel not found')
     }
 
-    const isMember = await prisma.member.findFirst({
-      where: { channelId: channelFromSlug.id, memberId: userId },
-      select: { id: true },
-    })
-
-    if (!isMember) {
-      throw new UnauthorizedError('You are not a member of this channel')
+    if (attachmentIds.length) {
+      // Only my own pending uploads of this very channel can be attached
+      const usable = await prisma.attachment.count({
+        where: { id: { in: attachmentIds }, uploaderId: userId, channelId: channel.id, messageId: null },
+      })
+      if (usable !== attachmentIds.length) {
+        throw new BadRequestError('Some attachments are invalid or were already sent')
+      }
     }
 
-    const message = await prisma.message.create({
+    const text = content?.trim() || null
+    const mentionedIds = text ? await resolveChannelMentions(channel.id, text) : []
+
+    const saved = await prisma.message.create({
       data: {
-        content,
+        content: text,
         authorId: userId,
-        channelId: channelFromSlug.id,
+        channelId: channel.id,
+        parentId: replyToId ?? null,
+        mentions: mentionedIds.length
+          ? { createMany: { data: mentionedIds.map((id) => ({ userId: id })) } }
+          : undefined,
+        attachments: attachmentIds.length ? { connect: attachmentIds.map((id) => ({ id })) } : undefined,
       },
-      select: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          }
-        },
-        authorId: true,
-        content: true,
-        createdAt: true,
-        id: true,
-      }
+      select: messageSelect,
+    })
+    const message = toMessagePayload(saved)
+
+    // The sender has obviously read everything up to their own message
+    await prisma.member.update({
+      where: { channelId_memberId: { channelId: channel.id, memberId: userId } },
+      data: { lastReadAt: message.createdAt },
     })
 
-    getIO()
-      .to(rooms.channel(channelFromSlug.id))
-      .emit('channel:message', { channelId: channelFromSlug.id, message })
+    const io = getIO()
+    io.to(rooms.channel(channel.id)).emit('channel:message', { channelId: channel.id, message })
+
+    // Lightweight signal to every member (even those without the channel open) for unread badges
+    const members = await prisma.member.findMany({
+      where: { channelId: channel.id },
+      select: { memberId: true },
+    })
+    io.to(members.map(({ memberId }) => rooms.user(memberId))).emit('channel:activity', {
+      channelId: channel.id,
+      messageId: message.id,
+      authorId: userId,
+    })
+
+    notifyMentions(channel, message, mentionedIds)
 
     return response.status(200).json(message)
   }

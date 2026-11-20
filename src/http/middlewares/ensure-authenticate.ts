@@ -17,11 +17,14 @@ export function ensureAuthentication(
   const authorization = request.headers.authorization;
 
   if (!authorization) {
-    throw new UnauthorizedError('JTW is missing');
+    throw new UnauthorizedError('JWT is missing');
   }
 
-  const [, token] = authorization.split(' ');
+  const [scheme, token] = authorization.split(' ');
 
+  if (scheme?.toLowerCase() !== 'bearer' || !token) {
+    throw new UnauthorizedError('invalid_jwt_token');
+  }
 
   try {
     const decoded = verify(token, env.JWT_SECRET);

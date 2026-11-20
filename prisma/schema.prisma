@@ -15,6 +15,11 @@ enum Role {
   MEMBER
 }
 
+enum ChannelType {
+  GROUP
+  DIRECT
+}
+
 enum TokenType {
   PASSWORD_RECOVER
   REFRESH
@@ -25,10 +30,14 @@ model User {
   email     String
   password  String   @map("password_hash")
   name      String?
+  avatarUrl String?  @map("avatar_url")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   messages        Message[]
+  reactions       Reaction[]
+  mentions        Mention[]
+  attachments     Attachment[]
   members         Member[]
   channels        Channel[] // This field is not used in the current schema.
   authoredInvites Invite[]  @relation("InviteAuthor") // This relates to Invite.author
@@ -44,6 +53,9 @@ model Token {
   id        String    @id @default(uuid())
   type      TokenType
   createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime? @map("expires_at")
+  // SHA-256 of the opaque refresh token (the raw value is only ever known by the client)
+  tokenHash String?   @unique @map("token_hash")
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @map("user_id")
@@ -61,8 +73,10 @@ model Member {
   channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   channelId String  @map("channel_id")
 
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  lastReadAt DateTime @default(now()) @map("last_read_at")
 
+  @@unique([channelId, memberId])
   @@map("members")
 }
 
@@ -81,7 +95,7 @@ model Invite {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  @@unique([channelId])
+  @@unique([channelId, inviteeId])
   @@map("invites")
 }
 
@@ -90,6 +104,7 @@ model Channel {
   title       String
   description String?
   slug        String
+  type        ChannelType @default(GROUP)
   active      Boolean  @default(true)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -97,9 +112,10 @@ model Channel {
   owner   User   @relation(fields: [ownerId], references: [id])
   ownerId String @map("owner_id")
 
-  members  Member[]
-  messages Message[]
-  invites  Invite[]
+  members     Member[]
+  messages    Message[]
+  invites     Invite[]
+  attachments Attachment[]
 
   @@unique([slug])
   @@index([slug])
@@ -116,8 +132,79 @@ model Message {
   channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   channelId String  @map("channel_id")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  editedAt  DateTime? @map("edited_at")
+  deletedAt DateTime? @map("deleted_at")
 
+  // Reply: the message this one answers (kept as null if the original row is ever removed)
+  parent   Message?  @relation("MessageReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  parentId String?   @map("parent_id")
+  replies  Message[] @relation("MessageReplies")
+
+  reactions   Reaction[]
+  mentions    Mention[]
+  attachments Attachment[]
+
+  @@index([channelId, createdAt])
   @@map("messages")
+}
+
+model Reaction {
+  id    String @id @default(uuid())
+  emoji String
+
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String  @map("message_id")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([messageId, userId, emoji])
+  @@map("reactions")
+}
+
+model Mention {
+  id String @id @default(uuid())
+
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String  @map("message_id")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@map("mentions")
+}
+
+/// A file uploaded to a channel. It is created first (messageId null) and linked when the message is sent.
+model Attachment {
+  id           String  @id @default(uuid())
+  name         String
+  mime         String
+  size         Int
+  width        Int?
+  height       Int?
+  storageKey   String  @map("storage_key")
+  thumbnailKey String? @map("thumbnail_key")
+
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channelId String  @map("channel_id")
+
+  message   Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String?  @map("message_id")
+
+  uploader   User   @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  uploaderId String @map("uploader_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([messageId])
+  @@index([uploaderId, messageId])
+  @@map("attachments")
 }
