@@ -76,7 +76,7 @@ app.use(
 
     if (err instanceof ZodError) {
       return response.status(400).json({
-        message: 'Validation error',
+        message: 'Dados inválidos',
         errors: err.flatten().fieldErrors,
       });
     }

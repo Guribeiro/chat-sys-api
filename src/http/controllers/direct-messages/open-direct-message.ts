@@ -17,11 +17,11 @@ export class OpenDirectMessageController {
     const { userId: peerId } = request.body as { userId: string }
 
     if (peerId === userId) {
-      throw new BadRequestError('You can not open a conversation with yourself')
+      throw new BadRequestError('Você não pode abrir uma conversa com você mesmo')
     }
 
     const peer = await prisma.user.findUnique({ where: { id: peerId }, select: userSummarySelect })
-    if (!peer) throw new NotFoundError('User not found')
+    if (!peer) throw new NotFoundError('Usuário não encontrado')
 
     const existing = await prisma.channel.findFirst({
       where: {

@@ -23,7 +23,7 @@ export class CreateInviteController {
     })
 
     if (!invitee) {
-      throw new NotFoundError('Invitee not found.')
+      throw new NotFoundError('Usuário convidado não encontrado.')
     }
 
     const memberFromChannelAndInviteeId = await prisma.member.findUnique({
@@ -31,7 +31,7 @@ export class CreateInviteController {
     })
 
     if (memberFromChannelAndInviteeId) {
-      throw new BadRequestError('You can not invite someone who is already a member of this channel')
+      throw new BadRequestError('Esta pessoa já é membro do canal')
     }
 
     const inviteFromChannelAndInvitee = await prisma.invite.findUnique({
@@ -39,7 +39,7 @@ export class CreateInviteController {
     })
 
     if (inviteFromChannelAndInvitee) {
-      throw new BadRequestError('Invite already exists.')
+      throw new BadRequestError('Já existe um convite pendente para esta pessoa.')
     }
 
     const invite = await prisma.invite.create({

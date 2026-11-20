@@ -82,3 +82,90 @@ describe('channel access', () => {
     expect(await unread()).toBe(0)
   })
 })
+
+describe('channel roles and ownership', () => {
+  async function setup() {
+    const owner = await createUser()
+    const admin = await createUser()
+    const member = await createUser()
+    const channel = await createChannel(owner)
+    await addMember(owner, channel.slug, admin, 'ADMIN')
+    await addMember(owner, channel.slug, member)
+    const { body: members } = await api().get(`/channels/${channel.slug}/members`).set(auth(owner)).expect(200)
+    const rowOf = (user: { id: string }) => members.find((row: { memberId: string }) => row.memberId === user.id).id as string
+    return { owner, admin, member, channel, members, rowOf }
+  }
+
+  it('tells the viewer what they may do and who owns the channel', async () => {
+    const { owner, admin, member, channel, members } = await setup()
+
+    const asOwner = await api().get(`/channels/${channel.slug}`).set(auth(owner)).expect(200)
+    expect(asOwner.body).toMatchObject({ ownerId: owner.id, viewer: { role: 'ADMIN', isOwner: true, isAdmin: true } })
+    const asAdmin = await api().get(`/channels/${channel.slug}`).set(auth(admin)).expect(200)
+    expect(asAdmin.body.viewer).toEqual({ role: 'ADMIN', isOwner: false, isAdmin: true })
+    const asMember = await api().get(`/channels/${channel.slug}`).set(auth(member)).expect(200)
+    expect(asMember.body.viewer).toEqual({ role: 'MEMBER', isOwner: false, isAdmin: false })
+
+    expect(members.filter((row: { isOwner: boolean }) => row.isOwner).map((row: { memberId: string }) => row.memberId)).toEqual([owner.id])
+  })
+
+  it('admins promote members, only the owner demotes admins, nobody changes the owner or themselves', async () => {
+    const { owner, admin, member, channel, rowOf } = await setup()
+    const path = (user: { id: string }) => `/channels/${channel.slug}/members/${rowOf(user)}`
+
+    await api().patch(path(admin)).set(auth(member)).send({ role: 'MEMBER' }).expect(403)
+    const promoted = await api().patch(path(member)).set(auth(admin)).send({ role: 'ADMIN' }).expect(200)
+    expect(promoted.body.role).toBe('ADMIN')
+
+    await api().patch(path(member)).set(auth(admin)).send({ role: 'MEMBER' }).expect(403)
+    await api().patch(path(admin)).set(auth(admin)).send({ role: 'MEMBER' }).expect(400)
+    await api().patch(path(owner)).set(auth(admin)).send({ role: 'MEMBER' }).expect(400)
+    await api().patch(path(owner)).set(auth(owner)).send({ role: 'MEMBER' }).expect(400)
+
+    const demoted = await api().patch(path(member)).set(auth(owner)).send({ role: 'MEMBER' }).expect(200)
+    expect(demoted.body.role).toBe('MEMBER')
+  })
+
+  it('only the owner transfers ownership, and the new owner can then delete the channel', async () => {
+    const { owner, admin, member, channel, rowOf } = await setup()
+    const transfer = (by: Parameters<typeof auth>[0], to: { id: string }) =>
+      api().post(`/channels/${channel.slug}/transfer-ownership`).set(auth(by)).send({ memberId: rowOf(to) })
+
+    await transfer(admin, member).expect(403)
+    await transfer(owner, owner).expect(400)
+    await transfer(owner, member).expect(204)
+
+    const { body } = await api().get(`/channels/${channel.slug}`).set(auth(member)).expect(200)
+    expect(body).toMatchObject({ ownerId: member.id, viewer: { role: 'ADMIN', isOwner: true } })
+    const previous = await api().get(`/channels/${channel.slug}`).set(auth(owner)).expect(200)
+    expect(previous.body.viewer).toEqual({ role: 'ADMIN', isOwner: false, isAdmin: true })
+
+    await api().delete(`/channels/${channel.slug}`).set(auth(owner)).expect(403)
+    await api().delete(`/channels/${channel.slug}`).set(auth(member)).expect(204)
+  })
+
+  it('lists pending invites with the invitee and lets an admin revoke them', async () => {
+    const owner = await createUser()
+    const invitee = await createUser()
+    const channel = await createChannel(owner)
+    await api().post(`/channels/${channel.slug}/invites`).set(auth(owner)).send({ invitee_id: invitee.id }).expect(201)
+
+    const { body } = await api().get(`/channels/${channel.slug}/invites`).set(auth(owner)).expect(200)
+    expect(body[0]).toMatchObject({ invitee: { id: invitee.id }, author: { id: owner.id } })
+
+    await api().delete(`/channels/${channel.slug}/invites/${body[0].id}`).set(auth(owner)).expect(204)
+    const after = await api().get(`/channels/${channel.slug}/invites`).set(auth(owner)).expect(200)
+    expect(after.body).toHaveLength(0)
+  })
+
+  it('an inactive channel rejects new messages until it is reactivated', async () => {
+    const { owner, member, channel } = await setup()
+    await api().patch(`/channels/${channel.slug}/active`).set(auth(owner)).send({ status: 'INATIVO' }).expect(200)
+
+    const rejected = await api().post(`/channels/${channel.slug}/messages`).set(auth(member)).send({ content: 'oi' }).expect(403)
+    expect(rejected.body.message).toBe('Este canal está inativo')
+
+    await api().patch(`/channels/${channel.slug}/active`).set(auth(owner)).send({ status: 'ATIVO' }).expect(200)
+    await sendMessage(member, channel.slug, 'voltou')
+  })
+})

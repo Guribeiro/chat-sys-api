@@ -14,7 +14,7 @@ export class CreateAccountController {
     })
 
     if (userFromEmail) {
-      throw new BadRequestError('email is already been taken')
+      throw new BadRequestError('Este e-mail já está em uso')
     }
 
     const passwordHashed = await hash(password, 8)

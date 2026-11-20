@@ -36,10 +36,10 @@ export class ChangePasswordController {
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } })
-    if (!user) throw new NotFoundError('User not found')
+    if (!user) throw new NotFoundError('Usuário não encontrado')
 
     if (!(await compare(currentPassword, user.password))) {
-      throw new BadRequestError('Current password is incorrect')
+      throw new BadRequestError('A senha atual está incorreta')
     }
 
     await prisma.user.update({ where: { id: userId }, data: { password: await hash(newPassword, 8) } })

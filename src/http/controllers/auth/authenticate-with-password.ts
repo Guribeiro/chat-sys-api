@@ -15,13 +15,13 @@ export class AuthenticateWithPasswordController {
     })
 
     if (!userFromEmail) {
-      throw new BadRequestError('invalid credentials')
+      throw new BadRequestError('E-mail ou senha incorretos')
     }
 
     const isPasswordValid = await compare(password, userFromEmail.password)
 
     if (!isPasswordValid) {
-      throw new BadRequestError('invalid credentials')
+      throw new BadRequestError('E-mail ou senha incorretos')
     }
 
     const { token, refreshToken } = await issueSession(userFromEmail)

@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { prisma } from '@/http/lib/prisma'
 import { BadRequestError } from '@/http/_errors'
 import { getMembership } from '@/http/lib/get-membership'
+import { ensureActiveChannel } from '@/http/lib/ensure-group-channel'
 import { attachmentSelect, toAttachmentPayload } from '@/http/lib/attachment-select'
 import { deleteQuietly, storage } from '@/lib/storage'
 import { DOCUMENT_TYPES, IMAGE_TYPES, cleanFileName, newKey, processImage } from '@/lib/uploads'
@@ -14,10 +15,11 @@ export class UploadAttachmentsController {
   public async handle(request: Request, response: Response) {
     const userId = request.user.id
     const { channel } = await getMembership(request.params.slug, userId)
+    ensureActiveChannel(channel)
 
     const files = (request.files as Express.Multer.File[] | undefined) ?? []
     if (!files.length) {
-      throw new BadRequestError('No files were sent (use the "files" field)')
+      throw new BadRequestError('Nenhum arquivo foi enviado (use o campo "files")')
     }
 
     const written: string[] = []

@@ -14,7 +14,7 @@ export class DeleteChannelController {
 
     // Deleting is destructive: only the owner may do it
     if (!isOwner) {
-      throw new ForbiddenError('Only the channel owner can delete it')
+      throw new ForbiddenError('Somente o dono do canal pode excluí-lo')
     }
 
     // Rows cascade with the channel, the files on disk do not

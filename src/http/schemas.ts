@@ -52,19 +52,21 @@ export const createMessageBody = z.object({
   replyToId: id.optional(),
   attachmentIds: z.array(id).max(5).optional(),
 }).refine((body) => !!body.content || !!body.attachmentIds?.length, {
-  message: 'A message needs text or at least one attachment',
+  message: 'A mensagem precisa de texto ou de pelo menos um anexo',
   path: ['content'],
 })
 export const updateMessageBody = z.object({ content: messageContent })
 export const reactionBody = z.object({
   // A single emoji (possibly with skin tone / ZWJ sequences), never arbitrary text
-  emoji: z.string().trim().min(1).max(32).regex(/^(?=.*\p{Extended_Pictographic})[\p{Extended_Pictographic}\p{Emoji_Component}\u200d\ufe0f]+$/u, 'Invalid emoji'),
+  emoji: z.string().trim().min(1).max(32).regex(/^(?=.*\p{Extended_Pictographic})[\p{Extended_Pictographic}\p{Emoji_Component}\u200d\ufe0f]+$/u, 'Emoji inválido'),
 })
 export const channelNotificationsBody = z.object({ muted: z.boolean() })
 export const messagesQuery = z.object({
   cursor: id.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(30),
 })
+export const memberRoleBody = z.object({ role: z.enum(['ADMIN', 'MEMBER']) })
+export const transferOwnershipBody = z.object({ memberId: id })
 export const createInviteBody = z.object({
   invitee_id: id,
   role: z.enum(['ADMIN', 'MEMBER']).default('MEMBER'),
