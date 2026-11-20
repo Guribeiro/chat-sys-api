@@ -53,13 +53,13 @@ export function initSocket(httpServer: HttpServer): IO {
       try {
         const channel = await findChannelForMember(slug, userId)
         if (!channel) {
-          return ack?.({ ok: false, error: 'Channel not found or you are not a member' })
+          return ack?.({ ok: false, error: 'Canal não encontrado ou você não é membro dele' })
         }
         await socket.join(rooms.channel(channel.id))
         ack?.({ ok: true, channelId: channel.id })
       } catch (error) {
         console.error('[socket] channel:join failed', error)
-        ack?.({ ok: false, error: 'Internal error' })
+        ack?.({ ok: false, error: 'Não foi possível entrar no canal. Tente de novo.' })
       }
     })
 

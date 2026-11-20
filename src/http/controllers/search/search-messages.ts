@@ -2,7 +2,7 @@ import { Request, Response } from 'express'
 import { Prisma } from '@prisma/client'
 
 import { prisma } from '@/http/lib/prisma'
-import { toPlainPreview } from '@/http/lib/mentions'
+import { extractMentionIds, toPlainPreview } from '@/http/lib/mentions'
 
 // Control characters as highlight markers: they can never appear in user text after
 // rendering, so the client splits on them instead of injecting HTML.
@@ -19,8 +19,20 @@ type Row = {
   authorId: string
   authorName: string | null
   authorAvatarUrl: string | null
-  snippet: string
+  content: string
   rank: number
+}
+
+// Single-excerpt mode: the fragment mode (MaxFragments >= 1) drops leading words of the excerpt
+const HEADLINE_OPTIONS = `StartSel=${START}, StopSel=${STOP}, MaxWords=30, MinWords=10, MaxFragments=0`
+const MARKERS = new RegExp(`[${START}${STOP}]`, 'g')
+
+/** Marks a cut excerpt with "…" on the side(s) where the message continues. */
+function withEllipsis(snippet: string, full: string) {
+  const bare = snippet.replace(MARKERS, '').trim()
+  const head = full.startsWith(bare.slice(0, 20)) ? '' : '…'
+  const tail = full.endsWith(bare.slice(-20)) ? '' : '…'
+  return `${head}${snippet.trim()}${tail}`
 }
 
 /** Full-text search (Portuguese stemming) over every channel I belong to. */
@@ -32,8 +44,7 @@ export class SearchMessagesController {
     const rows = await prisma.$queryRaw<Row[]>(Prisma.sql`
       SELECT m.id, m.channel_id AS "channelId", c.slug, c.title, c.type, m.created_at AS "createdAt",
              m.author_id AS "authorId", u.name AS "authorName", u.avatar_url AS "authorAvatarUrl",
-             ts_headline('portuguese', m.content, query,
-               ${`StartSel=${START}, StopSel=${STOP}, MaxWords=30, MinWords=10, MaxFragments=1`}) AS snippet,
+             m.content,
              ts_rank(to_tsvector('portuguese', coalesce(m.content, '')), query) AS rank
       FROM messages m
       JOIN channels c ON c.id = m.channel_id
@@ -46,9 +57,9 @@ export class SearchMessagesController {
       LIMIT ${limit}
     `)
 
-    // Mention tokens inside snippets become @Name; DM titles become the other person's name
-    const tokenIds = new Set<string>()
-    rows.forEach((row) => row.snippet.match(/<@([0-9a-f-]{36})>/gi)?.forEach((token) => tokenIds.add(token.slice(2, -1).toLowerCase())))
+    // Mention tokens become @Name *before* the snippet is cut: ts_headline splits `<@uuid>` into
+    // several words and could start a fragment in the middle of one, leaking part of the id.
+    const tokenIds = new Set(rows.flatMap((row) => extractMentionIds(row.content)))
     const directIds = rows.filter((row) => row.type === 'DIRECT').map((row) => row.channelId)
 
     const [mentioned, peers] = await Promise.all([
@@ -65,12 +76,21 @@ export class SearchMessagesController {
     const names = new Map(mentioned.map((user) => [user.id, user.name]))
     const peerNames = new Map(peers.map((peer) => [peer.channelId, peer.member.name]))
 
+    const plainContents = rows.map((row) => toPlainPreview(row.content, names, 4000))
+    const headlines = plainContents.length
+      ? await prisma.$queryRaw<{ snippet: string }[]>(Prisma.sql`
+        SELECT ts_headline('portuguese', t.content, websearch_to_tsquery('portuguese', ${q}), ${HEADLINE_OPTIONS}) AS snippet
+        FROM unnest(${plainContents}::text[]) WITH ORDINALITY AS t(content, position)
+        ORDER BY t.position
+      `)
+      : []
+
     return response.status(200).json({
-      results: rows.map(({ snippet, rank: _rank, authorName, authorAvatarUrl, ...row }) => ({
+      results: rows.map(({ content: _content, rank: _rank, authorName, authorAvatarUrl, ...row }, index) => ({
         ...row,
         title: row.type === 'DIRECT' ? peerNames.get(row.channelId) ?? 'Mensagem direta' : row.title,
         author: { id: row.authorId, name: authorName, avatarUrl: authorAvatarUrl },
-        snippet: toPlainPreview(snippet, names, 400),
+        snippet: withEllipsis(toPlainPreview(headlines[index]?.snippet ?? '', names, 400), plainContents[index]),
       })),
     })
   }
