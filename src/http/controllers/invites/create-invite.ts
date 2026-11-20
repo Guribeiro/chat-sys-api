@@ -5,7 +5,8 @@ import { getAdminMembership } from "@/http/lib/get-membership"
 import { Request, Response } from 'express'
 import type { Role } from '@prisma/client'
 
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 
 export class CreateInviteController {
   async handle(request: Request, response: Response) {
@@ -56,7 +57,7 @@ export class CreateInviteController {
     })
 
     // Personal room: reaches every open tab of the invitee
-    getIO().to(rooms.user(invitee.id)).emit('notification:new_invite', { invite })
+    getPublisher().to(rooms.user(invitee.id)).emit('notification:new_invite', { invite })
 
     return response.status(201).send({
       inviteId: invite.id

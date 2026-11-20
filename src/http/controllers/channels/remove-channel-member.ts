@@ -3,7 +3,8 @@ import { Request, Response } from 'express'
 import { prisma } from '@/http/lib/prisma'
 import { BadRequestError, ForbiddenError, NotFoundError } from '@/http/_errors'
 import { getAdminMembership } from '@/http/lib/get-membership'
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 
 export class RemoveChannelMemberController {
   public async handle(request: Request, response: Response) {
@@ -38,7 +39,7 @@ export class RemoveChannelMemberController {
       }
     })
 
-    const io = getIO()
+    const io = getPublisher()
     const channelRoom = rooms.channel(channel.id)
     const payload = { channelId: channel.id, userId: memberFromChannel.memberId }
 

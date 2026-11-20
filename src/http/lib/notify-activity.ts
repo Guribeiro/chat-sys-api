@@ -1,6 +1,7 @@
 import type { Channel } from '@prisma/client'
 
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 import type { MessagePayload } from './message-select'
 import { toPlainPreview } from './mentions'
 
@@ -29,7 +30,7 @@ export function notifyActivity(
   targets.delete(message.authorId)
   if (!targets.size) return
 
-  const io = getIO()
+  const io = getPublisher()
   const base = {
     channelId: channel.id,
     channelSlug: channel.slug,

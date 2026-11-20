@@ -1,26 +1,24 @@
 import type { Server as HttpServer } from 'http'
 import { Server } from 'socket.io'
+import { createAdapter } from '@socket.io/redis-adapter'
 
 import { env } from '@/env'
 import { prisma } from '@/http/lib/prisma'
+import { getRedis, redisEnabled } from '@/lib/redis'
 import { socketAuth } from './auth'
 import {
   rooms,
   type ClientToServerEvents,
+  type ServerSideEvents,
   type ServerToClientEvents,
   type SocketData,
 } from './events'
+import { createMemoryPresence, createRedisPresence, type Presence } from './presence'
 
-export type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>
+export type IO = Server<ClientToServerEvents, ServerToClientEvents, ServerSideEvents, SocketData>
 
 let io: IO | null = null
-
-// userId -> number of open sockets (one user may have several tabs)
-const presence = new Map<string, number>()
-
-function onlineUserIds() {
-  return Array.from(presence.keys())
-}
+let presence: Presence | null = null
 
 async function findChannelForMember(slug: string, userId: string) {
   return prisma.channel.findFirst({
@@ -29,25 +27,36 @@ async function findChannelForMember(slug: string, userId: string) {
   })
 }
 
-export function initSocket(httpServer: HttpServer): IO {
-  io = new Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>(httpServer, {
+/**
+ * Starts Socket.io on the given HTTP server. With REDIS_URL, the Redis adapter relays emits and
+ * room operations to every other instance, and presence is shared through Redis too.
+ */
+export async function initSocket(httpServer: HttpServer): Promise<IO> {
+  const server: IO = new Server(httpServer, {
     cors: { origin: env.WEB_URL.split(',').map((origin) => origin.trim()) },
   })
 
-  io.use(socketAuth)
+  if (redisEnabled) {
+    const { pub, sub } = await getRedis()
+    server.adapter(createAdapter(pub, sub))
+    presence = createRedisPresence(pub)
+  } else {
+    presence = createMemoryPresence()
+  }
+  const online = presence
 
-  io.on('connection', (socket) => {
+  server.use(socketAuth)
+
+  // Sent by another instance (or by the API through the emitter): each instance updates its own sockets
+  server.on('user:renamed', async ({ userId, name }) => {
+    const sockets = await server.local.in(rooms.user(userId)).fetchSockets()
+    sockets.forEach((socket) => { socket.data.name = name })
+  })
+
+  server.on('connection', async (socket) => {
     const { userId } = socket.data
 
     socket.join(rooms.user(userId))
-
-    const count = presence.get(userId) ?? 0
-    presence.set(userId, count + 1)
-
-    socket.emit('presence:snapshot', onlineUserIds())
-    if (count === 0) {
-      socket.broadcast.emit('presence:update', onlineUserIds())
-    }
 
     socket.on('channel:join', async ({ slug }, ack) => {
       try {
@@ -80,23 +89,41 @@ export function initSocket(httpServer: HttpServer): IO {
       socket.to(rooms.channel(channelId)).emit('channel:typing', { channelId, userId, name: socket.data.name })
     })
 
-    socket.on('disconnect', () => {
-      const remaining = (presence.get(userId) ?? 1) - 1
-      if (remaining > 0) {
-        presence.set(userId, remaining)
-        return
+    socket.on('disconnect', async () => {
+      try {
+        if (await online.remove(userId)) server.emit('presence:update', await online.list())
+      } catch (error) {
+        console.error('[socket] presence remove failed', error)
       }
-      presence.delete(userId)
-      io?.emit('presence:update', onlineUserIds())
     })
+
+    try {
+      const wentOnline = await online.add(userId)
+      socket.emit('presence:snapshot', await online.list())
+      if (wentOnline) socket.broadcast.emit('presence:update', await online.list())
+    } catch (error) {
+      console.error('[socket] presence add failed', error)
+    }
   })
 
-  return io
+  io = server
+  return server
 }
 
 export function getIO(): IO {
   if (!io) throw new Error('Socket.io not initialized. Call initSocket() first.')
   return io
+}
+
+/** Graceful shutdown: drop this instance's presence and close connections (clients reconnect elsewhere). */
+export async function closeSocket() {
+  if (!io) return
+  const server = io
+  io = null
+  await presence?.close()
+  server.emit('presence:update', (await presence?.list()) ?? [])
+  presence = null
+  await new Promise<void>((resolve) => server.close(() => resolve()))
 }
 
 export { rooms }

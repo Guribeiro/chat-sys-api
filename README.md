@@ -29,7 +29,7 @@ This is a Node.js application for a real-time chat system, built with Express, P
 
 ### Running with Docker (recommended)
 
-The only requirement is Docker with Compose. This starts **PostgreSQL**, the **API** and the **web front-end**, all in watch mode (hot reload). Migrations are applied automatically on startup.
+The only requirement is Docker with Compose. This starts **PostgreSQL**, **Redis**, the **API**, the **realtime server** (Socket.io) and the **web front-end**, all in watch mode (hot reload). Migrations are applied automatically on startup.
 
 > The `web` service is built from `../web`, so both repositories must be cloned side by side:
 > `chat-sys/api` and `chat-sys/web`.
@@ -40,10 +40,11 @@ docker compose up --build -d      # or: pnpm docker:up
 
 - Web: http://localhost:8080
 - API: http://localhost:3333
+- Realtime (Socket.io): http://localhost:3334
 - Postgres: `localhost:5432` (user/password/db: `docker`)
 - Mailpit (catches every e-mail sent in dev): http://localhost:8025
 
-To run only the back-end (e.g. front-end with `pnpm dev` on the host): `docker compose up -d db api`.
+To run only the back-end (e.g. front-end with `pnpm dev` on the host): `docker compose up -d db redis api realtime`.
 
 Useful commands:
 
@@ -57,7 +58,7 @@ Useful commands:
 | `docker compose up --build -d` | Rebuild after changing `package.json` dependencies (API or web) |
 
 To seed automatically at startup: `RUN_SEED=true docker compose up -d`.
-Ports and credentials can be overridden through env vars / a `.env` file (`API_PORT`, `WEB_PORT`, `VITE_API_URL`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`).
+Ports and credentials can be overridden through env vars / a `.env` file (`API_PORT`, `REALTIME_PORT`, `WEB_PORT`, `VITE_API_URL`, `VITE_SOCKET_URL`, `REALTIME_MODE`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`).
 
 Creating a new migration after editing `prisma/schema.prisma`:
 
@@ -103,6 +104,28 @@ docker compose exec api pnpm prisma migrate dev --name <migration-name>
     ```bash
     pnpm run db:studio
     ```
+
+## Realtime architecture
+
+Socket.io can run in two modes, chosen by `REALTIME_MODE`:
+
+| Mode | Where Socket.io runs | When to use |
+| --- | --- | --- |
+| `embedded` (default) | Inside the API process, on the same port | Local dev, tests, a single instance. Redis is optional. |
+| `standalone` (Docker default) | `src/realtime-server.ts`, its own process/port | Deploying the API without dropping connections; scaling HTTP and WebSockets separately. Requires Redis. |
+
+How the pieces fit:
+
+```
+Browser ──HTTP──▶ API ──publish (Redis emitter)──▶ Redis ──▶ realtime instance(s) ──WebSocket──▶ Browser
+```
+
+- **Redis adapter** (`@socket.io/redis-adapter`): with `REDIS_URL`, every realtime instance (or every embedded API) relays emits and room operations to the others. That is what makes more than one instance possible: a message posted on instance A reaches a user connected to instance B.
+- **Redis emitter** (`@socket.io/redis-emitter`): in standalone mode the API holds no connections. Controllers call `getPublisher()` (`src/socket/publisher.ts`), which is the local Socket.io server in embedded mode and an emitter in standalone mode, with the same `to(...).emit(...)` API.
+- **Presence** (`src/socket/presence.ts`): kept in memory without Redis. With Redis, each instance owns a `presence:<serverId>` hash with a 30s TTL renewed by a heartbeat, so a crashed instance's users go offline on their own.
+- The web client connects with `transports: ['websocket']`, so a load balancer in front of several realtime instances needs no sticky sessions.
+
+Running standalone outside Docker: start Redis (`docker compose up -d redis`), set `REDIS_URL` and `REALTIME_MODE=standalone` in `.env`, then run `pnpm dev` and `pnpm dev:realtime`, and point the web app at it with `VITE_SOCKET_URL=http://localhost:3334`.
 
 ## API Endpoints
 

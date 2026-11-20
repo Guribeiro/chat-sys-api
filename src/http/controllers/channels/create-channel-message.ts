@@ -7,7 +7,8 @@ import { messageSelect, toMessagePayload } from '@/http/lib/message-select'
 import { resolveChannelMentions } from '@/http/lib/mentions'
 import { messagePreview, notifyActivity } from '@/http/lib/notify-activity'
 
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 
 export class CreateChannelMessageController {
   public async handle(request: Request, response: Response) {
@@ -67,7 +68,7 @@ export class CreateChannelMessageController {
       data: { lastReadAt: message.createdAt },
     })
 
-    const io = getIO()
+    const io = getPublisher()
     io.to(rooms.channel(channel.id)).emit('channel:message', { channelId: channel.id, message })
 
     // Lightweight signal to every member (even those without the channel open) for unread badges

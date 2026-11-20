@@ -4,7 +4,8 @@ import { prisma } from '@/http/lib/prisma'
 import { BadRequestError, ForbiddenError, NotFoundError } from '@/http/_errors'
 import { ensureGroupChannel } from '@/http/lib/ensure-group-channel'
 import { getAdminMembership } from '@/http/lib/get-membership'
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 
 /**
  * Changes a member's role. Admins may promote members; only the owner may demote admins.
@@ -41,7 +42,7 @@ export class UpdateChannelMemberController {
       ? target
       : await prisma.member.update({ where: { id: target.id }, data: { role } })
 
-    getIO()
+    getPublisher()
       .to(rooms.channel(channel.id))
       .to(rooms.user(target.memberId))
       .emit('channel:member_updated', { channelId: channel.id, userId: target.memberId, role: updated.role })

@@ -3,7 +3,8 @@ import { prisma } from '@/http/lib/prisma'
 import { BadRequestError, ForbiddenError, NotFoundError } from '@/http/_errors'
 import { ensureGroupChannel } from '@/http/lib/ensure-group-channel'
 import { getMembership } from '@/http/lib/get-membership'
-import { getIO, rooms } from '@/socket'
+import { rooms } from '@/socket'
+import { getPublisher } from '@/socket/publisher'
 
 /** Hands the channel to another member, who becomes ADMIN. The previous owner stays ADMIN. */
 export class TransferChannelOwnershipController {
@@ -35,7 +36,7 @@ export class TransferChannelOwnershipController {
       prisma.channel.update({ where: { id: channel.id }, data: { ownerId: target.memberId } }),
     ])
 
-    getIO().to(rooms.channel(channel.id)).emit('channel:owner_changed', {
+    getPublisher().to(rooms.channel(channel.id)).emit('channel:owner_changed', {
       channelId: channel.id,
       previousOwnerId: userId,
       ownerId: target.memberId,
